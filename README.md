@@ -18,44 +18,44 @@ The JWT is passed to microservices using the gRPC context. The lifetime of the J
 Example client usage using the Go command line client (note that any thin client in any language supported by gRPC
 can be used instead):
 
-**acctclient -c login -a master -email user@example.com**
+**acctclient login -a master -e user@example.com**
 
 Login for the user, creating a JWT if successful. The account (-a master ) can be omitted if it is specified 
 in the client configuration file. The user is prompted for the password in this case.
 
-**acctclient -c create_account -a master -account_long_name 'example.com'  -account_type 1  
-          -address1 '123 Main Street' -city Anytown -state CO
-          -postal_code 98765 -phone 800-123-4567 -email admin@example.com**
+**acctclient create_account -a master --account_long_name 'example.com'  --account_type 1  
+          --address1 '123 Main Street' --city Anytown --state CO
+          --postal_code 98765 --phone 800-123-4567 -e admin@example.com**
 
 Creates an account to hold users and roles. Each account is independent of other accounts, so is likely 
 to be associated with a company or division. Requires admin privileges to create an account.
 
-**acctclient -c create_claim_name -claim_name acctmgt -claim_description 'account management'**
+**acctclient create_claim_name --claim_name acctmgt --claim_description 'account management'**
 
 Creates a claim name (independent of account). Requires admin privileges to create a claim name.
 
-**acctclient -c create_claim_value -claim_name_id 1 -claim_val acctro -claim_value_description 'read only account only'**
+**acctclient create_claim_value --claim_name_id 1 --claim_val acctro --claim_value_description 'read only account only'**
 
 Creates a claim value associated with a claim name.  The claim name id was returned by the create_claim_name command.
 Requires admin privileges to create a claim value.
 
-**acctclient -c create_account_role -account_id 1 -role_name acct_ro**
+**acctclient create_account_role --account_id 1 --role_name acct_ro**
 
 Creates an account role to associate claims with an account. Requires the account_id which was returned by create_account,
 and can be discovered with get_account_by_name. Requires admin or acctrw privileges to create an account role.
 
-**acctclient -c add_claim_to_role -claim_value_id 3 -role_id 3**
+**acctclient add_claim_to_role --claim_value_id 3 --role_id 3**
 
 Binds a claim value (and associated claim name) to a role.  The claim_value_id was returned by create_claim_value (and can be 
 discovered with get_claim_values), and the role_id was returned by create_account_role (and can be discovered with 
 get_account_roles). Requires admin or acctrw privileges to add a claim to an account role.
 
-**acctclient -c create_account_user -account_id 1 -email joe@example.com -user_full_name 'Joe Jones' -user_type 2 -password changeme**
+**acctclient create_account_user --account_id 1 -e joe@example.com --user_full_name 'Joe Jones' --user_type 2 --password changeme**
 
 Creates a user within an account. Requires the account_id which was returned by create_account,
 and can be discovered with get_account_by_name.
 
-**acctclient -c add_user_to_role -user_id 7 -role_id 3**
+**acctclient add_user_to_role --user_id 7 --role_id 3**
 
 Associates a role with a user. Requires the user_id returned by create_account_user (or can be discovered with get_account_users).
 Also required is the role_id,  returned by create_account_role (and can be discovered with 
@@ -156,7 +156,7 @@ file is at **cmd/acctclient/conf.sample**
 Running the excutable file with no parameters will write usage information to stdout.  In particular, most subcommands expect
 the user to have logged in:
 
-    acctclient -c login -email myname@example.com
+    acctclient login -e myname@example.com
 
 which then prompts for a password. If the login is successful, the temporary JWT is written to
 **~/.mservice.token**  The acctclient executable (and other clients in the suite) can then find the JWT to

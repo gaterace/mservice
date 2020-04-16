@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -25,6 +24,8 @@ import (
 	"os/user"
 	"strconv"
 	"syscall"
+
+	flag "github.com/juju/gnuflag"
 
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
 	"github.com/kylelemons/go-gypsy/yaml"
@@ -63,9 +64,10 @@ var role_name string
 var role_id int64
 
 func init() {
-	flag.StringVar(&cmd, "c", "", "acctclient command")
+	// flag.StringVar(&cmd, "c", "", "acctclient command")
 	flag.StringVar(&account_name, "a", "", "name for account")
 	flag.StringVar(&account_name, "account_name", "", "name for account")
+	flag.StringVar(&email, "e", "", "email address")
 	flag.StringVar(&email, "email", "", "email address")
 	flag.StringVar(&password, "password", "", "password for login")
 	// flag.StringVar(p, "", "", "")
@@ -98,7 +100,7 @@ func init() {
 }
 
 func main() {
-	flag.Parse()
+	flag.Parse(true)
 
 	configFilename := "conf.yaml"
 	usr, err := user.Current()
@@ -132,53 +134,57 @@ func main() {
 		port = 50051
 	}
 
+	if len(flag.Args()) > 0 {
+		cmd = flag.Arg(0)
+	}
+
 	if cmd == "" {
 		prog := os.Args[0]
 		fmt.Printf("Command line client for mservice account grpc service\n")
 		fmt.Printf("usage:\n")
-		fmt.Printf("    %s -c login [-a <account>] -email <email> -password <password>\n", prog)
+		fmt.Printf("    %s login [-a <account>] -e <email> [--password <password>]\n", prog)
 		fmt.Println(" ")
-		fmt.Printf("    %s -c create_account [-a <account>] -account_long_name <name>  -account_type <type>  \n", prog)
-		fmt.Println("          -address1 <address1> [-address2 <address2>] -city <city> -state <state>")
-		fmt.Println("          -postal_code <postal_code> [-country_code <country_code>] -phone <phone> -email <email>")
-		fmt.Printf("    %s -c update_account -account_id <account_id> [-a <account>] [-account_long_name <name>}  [-account_type <type>] \n", prog)
-		fmt.Println("          [-address1 <address1>] [-address2 <address2>] [-city <city>] [-state <state>]")
-		fmt.Println("          [-postal_code <postal_code>] [-country_code <country_code>] [-phone <phone>] [-email <email>]")
-		fmt.Printf("    %s -c delete_account -account_id <account_id> \n", prog)
-		fmt.Printf("    %s -c get_account_by_id -account_id <account_id> \n", prog)
-		fmt.Printf("    %s -c get_account_by_name -a <account_name> \n", prog)
-		fmt.Printf("    %s -c get_account_names \n", prog)
+		fmt.Printf("    %s create_account [-a <account>] --account_long_name <name>  --account_type <type>  \n", prog)
+		fmt.Println("          --address1 <address1> [--address2 <address2>] --city <city> --state <state>")
+		fmt.Println("          --postal_code <postal_code> [--country_code <country_code>] --phone <phone> -e <email>")
+		fmt.Printf("    %s update_account --account_id <account_id> [-a <account>] [--account_long_name <name>}  [--account_type <type>] \n", prog)
+		fmt.Println("          [--address1 <address1>] [--address2 <address2>] [--city <city>] [--state <state>]")
+		fmt.Println("          [--postal_code <postal_code>] [--country_code <country_code>] [--phone <phone>] [-e <email>]")
+		fmt.Printf("    %s delete_account --account_id <account_id> \n", prog)
+		fmt.Printf("    %s get_account_by_id --account_id <account_id> \n", prog)
+		fmt.Printf("    %s get_account_by_name -a <account_name> \n", prog)
+		fmt.Printf("    %s get_account_names \n", prog)
 		fmt.Println(" ")
-		fmt.Printf("    %s -c create_account_user -account_id <account_id> -email <email> -user_full_name <user_full_name>\n", prog)
-		fmt.Println("          -user_type <user_type> -password <password>")
-		fmt.Printf("    %s -c update_account_user -user_id <user_id> [-email <email>] [-user_full_name <user_full_name>]\n", prog)
-		fmt.Println("          [-user_type <user_type>]")
-		fmt.Printf("    %s -c update_account_user_password -user_id <user_id> -password_old <password_old> -password <password>\n", prog)
-		fmt.Printf("    %s -c delete_account_user -user_id <user_id>\n", prog)
-		fmt.Printf("    %s -c get_account_user_by_id -user_id <user_id>\n", prog)
-		fmt.Printf("    %s -c get_account_user_by_email [-a <account>] -email <email>\n", prog)
-		fmt.Printf("    %s -c get_account_users [-a <account>]\n", prog)
+		fmt.Printf("    %s create_account_user --account_id <account_id> -e <email> --user_full_name <user_full_name>\n", prog)
+		fmt.Println("          --user_type <user_type> --password <password>")
+		fmt.Printf("    %s update_account_user --user_id <user_id> [-e <email>] [--user_full_name <user_full_name>]\n", prog)
+		fmt.Println("          [--user_type <user_type>]")
+		fmt.Printf("    %s update_account_user_password --user_id <user_id> --password_old <password_old> --password <password>\n", prog)
+		fmt.Printf("    %s delete_account_user --user_id <user_id>\n", prog)
+		fmt.Printf("    %s get_account_user_by_id --user_id <user_id>\n", prog)
+		fmt.Printf("    %s get_account_user_by_email [-a <account>] -e <email>\n", prog)
+		fmt.Printf("    %s get_account_users [-a <account>]\n", prog)
 		fmt.Println(" ")
-		fmt.Printf("    %s -c create_claim_name -claim_name <claim_name> -claim_description <claim_description>\n", prog)
-		fmt.Printf("    %s -c update_claim_name -claim_name_id <claim_name_id> [-claim_name <claim_name>] [-claim_description <claim_description>]\n", prog)
-		fmt.Printf("    %s -c delete_claim_name -claim_name_id <claim_name_id>\n", prog)
-		fmt.Printf("    %s -c get_claim_names \n", prog)
-		fmt.Printf("    %s -c create_claim_value -claim_name_id <claim_name_id> -claim_val <claim_val> -claim_value_description <claim_value_description>\n", prog)
-		fmt.Printf("    %s -c update_claim_value -claim_value_id <claim_value_id> [-claim_val <claim_val>] [-claim_value_description <claim_value_description>]\n", prog)
-		fmt.Printf("    %s -c delete_claim_value -claim_value_id <claim_value_id> \n", prog)
-		fmt.Printf("    %s -c get_claim_value_by_id -claim_value_id <claim_value_id> \n", prog)
-		fmt.Printf("    %s -c get_claim_values_by_name_id -claim_name_id <claim_name_id> \n", prog)
-		fmt.Printf("    %s -c get_claim_values \n", prog)
+		fmt.Printf("    %s create_claim_name --claim_name <claim_name> --claim_description <claim_description>\n", prog)
+		fmt.Printf("    %s update_claim_name --claim_name_id <claim_name_id> [--claim_name <claim_name>] [--claim_description <claim_description>]\n", prog)
+		fmt.Printf("    %s delete_claim_name --claim_name_id <claim_name_id>\n", prog)
+		fmt.Printf("    %s get_claim_names \n", prog)
+		fmt.Printf("    %s create_claim_value --claim_name_id <claim_name_id> --claim_val <claim_val> --claim_value_description <claim_value_description>\n", prog)
+		fmt.Printf("    %s update_claim_value --claim_value_id <claim_value_id> [--claim_val <claim_val>] [--claim_value_description <claim_value_description>]\n", prog)
+		fmt.Printf("    %s delete_claim_value --claim_value_id <claim_value_id> \n", prog)
+		fmt.Printf("    %s get_claim_value_by_id --claim_value_id <claim_value_id> \n", prog)
+		fmt.Printf("    %s get_claim_values_by_name_id --claim_name_id <claim_name_id> \n", prog)
+		fmt.Printf("    %s get_claim_values \n", prog)
 		fmt.Println(" ")
-		fmt.Printf("    %s -c create_account_role -account_id <account_id> -role_name <role_name>\n", prog)
-		fmt.Printf("    %s -c update_account_role -role_id <role_id> -role_name <role_name>\n", prog)
-		fmt.Printf("    %s -c delete_account_role -role_id <role_id>\n", prog)
-		fmt.Printf("    %s -c get_account_role_by_id -role_id <role_id>\n", prog)
-		fmt.Printf("    %s -c get_account_roles -account_id <account_id>\n", prog)
-		fmt.Printf("    %s -c add_user_to_role -user_id <user_id> -role_id <role_id>\n", prog)
-		fmt.Printf("    %s -c remove_user_from_role -user_id <user_id> -role_id <role_id>\n", prog)
-		fmt.Printf("    %s -c add_claim_to_role -claim_value_id <claim_value_id> -role_id <role_id>\n", prog)
-		fmt.Printf("    %s -c remove_claim_from_role -claim_value_id <claim_value_id> -role_id <role_id>\n", prog)
+		fmt.Printf("    %s create_account_role --account_id <account_id> --role_name <role_name>\n", prog)
+		fmt.Printf("    %s update_account_role --role_id <role_id> --role_name <role_name>\n", prog)
+		fmt.Printf("    %s delete_account_role --role_id <role_id>\n", prog)
+		fmt.Printf("    %s get_account_role_by_id --role_id <role_id>\n", prog)
+		fmt.Printf("    %s get_account_roles --account_id <account_id>\n", prog)
+		fmt.Printf("    %s add_user_to_role --user_id <user_id> --role_id <role_id>\n", prog)
+		fmt.Printf("    %s remove_user_from_role --user_id <user_id> --role_id <role_id>\n", prog)
+		fmt.Printf("    %s add_claim_to_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
+		fmt.Printf("    %s remove_claim_from_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
 
 		os.Exit(1)
 	}
