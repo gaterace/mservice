@@ -33,7 +33,7 @@ import (
 )
 
 // Message receiver for account authorization.
-type accountAuth struct {
+type AccountAuth struct {
 	// For log messages.
 	logger *log.Logger
 	// SQL database connection.
@@ -45,19 +45,19 @@ type accountAuth struct {
 }
 
 // Create a new message receiver for account authorization.
-func NewAccountAuth(acctService pb.MServiceAccountServer) *accountAuth {
-	svc := accountAuth{}
+func NewAccountAuth(acctService pb.MServiceAccountServer) *AccountAuth {
+	svc := AccountAuth{}
 	svc.acctService = acctService
 	return &svc
 }
 
 // Set the logger for account authorization.
-func (s *accountAuth) SetLogger(logger *log.Logger) {
+func (s *AccountAuth) SetLogger(logger *log.Logger) {
 	s.logger = logger
 }
 
 // Set the RSA public key for JWT validation.
-func (s *accountAuth) SetPublicKey(publicKeyFile string) error {
+func (s *AccountAuth) SetPublicKey(publicKeyFile string) error {
 	publicKey, err := ioutil.ReadFile(publicKeyFile)
 	if err != nil {
 		s.logger.Printf("error reading publicKeyFile: %v\n", err)
@@ -75,12 +75,12 @@ func (s *accountAuth) SetPublicKey(publicKeyFile string) error {
 }
 
 // Set the database connection for account authorization.
-func (s *accountAuth) SetDatabaseConnection(sqlDB *sql.DB) {
+func (s *AccountAuth) SetDatabaseConnection(sqlDB *sql.DB) {
 	s.db = sqlDB
 }
 
 // Bind account authorization to GRPC server.
-func (s *accountAuth) NewApiServer(gServer *grpc.Server) error {
+func (s *AccountAuth) NewApiServer(gServer *grpc.Server) error {
 	if s != nil {
 		pb.RegisterMServiceAccountServer(gServer, s)
 	}
@@ -88,7 +88,7 @@ func (s *accountAuth) NewApiServer(gServer *grpc.Server) error {
 }
 
 // Get the Javascript Web Token (JWT) from GRPC context.
-func (s *accountAuth) GetJwtFromContext(ctx context.Context) (*map[string]interface{}, error) {
+func (s *AccountAuth) GetJwtFromContext(ctx context.Context) (*map[string]interface{}, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("cannot get metadata from context")
@@ -160,13 +160,13 @@ func GetStringFromClaims(claims *map[string]interface{}, key string) string {
 }
 
 // login does not require previous authorization.
-func (s *accountAuth) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+func (s *AccountAuth) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
 	resp, err := s.acctService.Login(ctx, req)
 	return resp, err
 }
 
 // create a new account
-func (s *accountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
+func (s *AccountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -183,7 +183,7 @@ func (s *accountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRe
 }
 
 // update an existing account.
-func (s *accountAuth) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.UpdateAccountResponse, error) {
+func (s *AccountAuth) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.UpdateAccountResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -201,7 +201,7 @@ func (s *accountAuth) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRe
 }
 
 // delete an existing account.
-func (s *accountAuth) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRequest) (*pb.DeleteAccountResponse, error) {
+func (s *AccountAuth) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRequest) (*pb.DeleteAccountResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -218,7 +218,7 @@ func (s *accountAuth) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRe
 }
 
 // get an account by account id.
-func (s *accountAuth) GetAccountById(ctx context.Context, req *pb.GetAccountByIdRequest) (*pb.GetAccountByIdResponse, error) {
+func (s *AccountAuth) GetAccountById(ctx context.Context, req *pb.GetAccountByIdRequest) (*pb.GetAccountByIdResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -241,7 +241,7 @@ func (s *accountAuth) GetAccountById(ctx context.Context, req *pb.GetAccountById
 }
 
 // get an account by account name.
-func (s *accountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountByNameRequest) (*pb.GetAccountByNameResponse, error) {
+func (s *AccountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountByNameRequest) (*pb.GetAccountByNameResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		uid := GetInt64FromClaims(claims, "uid")
@@ -266,7 +266,7 @@ func (s *accountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountBy
 }
 
 // Get account names within account.
-func (s *accountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNamesRequest) (*pb.GetAccountNamesResponse, error) {
+func (s *AccountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNamesRequest) (*pb.GetAccountNamesResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		uid := GetInt64FromClaims(claims, "uid")
@@ -290,7 +290,7 @@ func (s *accountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNam
 }
 
 // create an account user.
-func (s *accountAuth) CreateAccountUser(ctx context.Context, req *pb.CreateAccountUserRequest) (*pb.CreateAccountUserResponse, error) {
+func (s *AccountAuth) CreateAccountUser(ctx context.Context, req *pb.CreateAccountUserRequest) (*pb.CreateAccountUserResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -309,7 +309,7 @@ func (s *accountAuth) CreateAccountUser(ctx context.Context, req *pb.CreateAccou
 }
 
 // update an existing account user.
-func (s *accountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccountUserRequest) (*pb.UpdateAccountUserResponse, error) {
+func (s *AccountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccountUserRequest) (*pb.UpdateAccountUserResponse, error) {
 	var ok bool
 
 	claims, err := s.GetJwtFromContext(ctx)
@@ -343,7 +343,7 @@ func (s *accountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccou
 }
 
 // update an existing account user password.
-func (s *accountAuth) UpdateAccountUserPassword(ctx context.Context, req *pb.UpdateAccountUserPasswordRequest) (*pb.UpdateAccountUserPasswordResponse, error) {
+func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context, req *pb.UpdateAccountUserPasswordRequest) (*pb.UpdateAccountUserPasswordResponse, error) {
 	var ok bool
 
 	claims, err := s.GetJwtFromContext(ctx)
@@ -378,7 +378,7 @@ func (s *accountAuth) UpdateAccountUserPassword(ctx context.Context, req *pb.Upd
 }
 
 // delete an existing account user.
-func (s *accountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccountUserRequest) (*pb.DeleteAccountUserResponse, error) {
+func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccountUserRequest) (*pb.DeleteAccountUserResponse, error) {
 	var ok bool
 
 	claims, err := s.GetJwtFromContext(ctx)
@@ -413,7 +413,7 @@ func (s *accountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccou
 }
 
 // get an account user by id.
-func (s *accountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccountUserByIdRequest) (*pb.GetAccountUserByIdResponse, error) {
+func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccountUserByIdRequest) (*pb.GetAccountUserByIdResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -450,7 +450,7 @@ func (s *accountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 }
 
 // get an account user by email.
-func (s *accountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAccountUserByEmailRequest) (*pb.GetAccountUserByEmailResponse, error) {
+func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAccountUserByEmailRequest) (*pb.GetAccountUserByEmailResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -492,7 +492,7 @@ func (s *accountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAcco
 }
 
 // get all account users in account.
-func (s *accountAuth) GetAccountUsers(ctx context.Context, req *pb.GetAccountUsersRequest) (*pb.GetAccountUsersResponse, error) {
+func (s *AccountAuth) GetAccountUsers(ctx context.Context, req *pb.GetAccountUsersRequest) (*pb.GetAccountUsersResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -511,7 +511,7 @@ func (s *accountAuth) GetAccountUsers(ctx context.Context, req *pb.GetAccountUse
 }
 
 // create a claim name.
-func (s *accountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNameRequest) (*pb.CreateClaimNameResponse, error) {
+func (s *AccountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNameRequest) (*pb.CreateClaimNameResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -528,7 +528,7 @@ func (s *accountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNa
 }
 
 // update an existing claim name.
-func (s *accountAuth) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNameRequest) (*pb.UpdateClaimNameResponse, error) {
+func (s *AccountAuth) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNameRequest) (*pb.UpdateClaimNameResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -545,7 +545,7 @@ func (s *accountAuth) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNa
 }
 
 // delete an existing claim name.
-func (s *accountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNameRequest) (*pb.DeleteClaimNameResponse, error) {
+func (s *AccountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNameRequest) (*pb.DeleteClaimNameResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -562,7 +562,7 @@ func (s *accountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNa
 }
 
 // get all claim names.
-func (s *accountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRequest) (*pb.GetClaimNamesResponse, error) {
+func (s *AccountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRequest) (*pb.GetClaimNamesResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -579,7 +579,7 @@ func (s *accountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRe
 }
 
 // create claim value.
-func (s *accountAuth) CreateClaimValue(ctx context.Context, req *pb.CreateClaimValueRequest) (*pb.CreateClaimValueResponse, error) {
+func (s *AccountAuth) CreateClaimValue(ctx context.Context, req *pb.CreateClaimValueRequest) (*pb.CreateClaimValueResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -596,7 +596,7 @@ func (s *accountAuth) CreateClaimValue(ctx context.Context, req *pb.CreateClaimV
 }
 
 // update existing claim value.
-func (s *accountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimValueRequest) (*pb.UpdateClaimValueResponse, error) {
+func (s *AccountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimValueRequest) (*pb.UpdateClaimValueResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -613,7 +613,7 @@ func (s *accountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimV
 }
 
 // delete existing claim value.
-func (s *accountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimValueRequest) (*pb.DeleteClaimValueResponse, error) {
+func (s *AccountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimValueRequest) (*pb.DeleteClaimValueResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -630,7 +630,7 @@ func (s *accountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimV
 }
 
 // get claim value by id.
-func (s *accountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimValueByIdRequest) (*pb.GetClaimValueByIdResponse, error) {
+func (s *AccountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimValueByIdRequest) (*pb.GetClaimValueByIdResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -647,7 +647,7 @@ func (s *accountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimVal
 }
 
 // get all claim values for name id.
-func (s *accountAuth) GetClaimValuesByNameId(ctx context.Context, req *pb.GetClaimValuesByNameIdRequest) (*pb.GetClaimValuesByNameIdResponse, error) {
+func (s *AccountAuth) GetClaimValuesByNameId(ctx context.Context, req *pb.GetClaimValuesByNameIdRequest) (*pb.GetClaimValuesByNameIdResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -664,7 +664,7 @@ func (s *accountAuth) GetClaimValuesByNameId(ctx context.Context, req *pb.GetCla
 }
 
 // get all claim values for all claim names.
-func (s *accountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValuesRequest) (*pb.GetClaimValuesResponse, error) {
+func (s *AccountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValuesRequest) (*pb.GetClaimValuesResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -681,7 +681,7 @@ func (s *accountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValues
 }
 
 // create account role.
-func (s *accountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccountRoleRequest) (*pb.CreateAccountRoleResponse, error) {
+func (s *AccountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccountRoleRequest) (*pb.CreateAccountRoleResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -700,7 +700,7 @@ func (s *accountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccou
 }
 
 // update existing account role.
-func (s *accountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccountRoleRequest) (*pb.UpdateAccountRoleResponse, error) {
+func (s *AccountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccountRoleRequest) (*pb.UpdateAccountRoleResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -730,7 +730,7 @@ func (s *accountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccou
 }
 
 // delete existing account role.
-func (s *accountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccountRoleRequest) (*pb.DeleteAccountRoleResponse, error) {
+func (s *AccountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccountRoleRequest) (*pb.DeleteAccountRoleResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -760,7 +760,7 @@ func (s *accountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccou
 }
 
 // get account role by id.
-func (s *accountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccountRoleByIdRequest) (*pb.GetAccountRoleByIdResponse, error) {
+func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccountRoleByIdRequest) (*pb.GetAccountRoleByIdResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -790,7 +790,7 @@ func (s *accountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccount
 }
 
 // get all account roles in account.
-func (s *accountAuth) GetAccountRoles(ctx context.Context, req *pb.GetAccountRolesRequest) (*pb.GetAccountRolesResponse, error) {
+func (s *AccountAuth) GetAccountRoles(ctx context.Context, req *pb.GetAccountRolesRequest) (*pb.GetAccountRolesResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -809,7 +809,7 @@ func (s *accountAuth) GetAccountRoles(ctx context.Context, req *pb.GetAccountRol
 }
 
 // associate an account user with an account role.
-func (s *accountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRequest) (*pb.AddUserToRoleResponse, error) {
+func (s *AccountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRequest) (*pb.AddUserToRoleResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -846,7 +846,7 @@ func (s *accountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRe
 }
 
 // disassociate an account user from an account role.
-func (s *accountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUserFromRoleRequest) (*pb.RemoveUserFromRoleResponse, error) {
+func (s *AccountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUserFromRoleRequest) (*pb.RemoveUserFromRoleResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -876,7 +876,7 @@ func (s *accountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUser
 }
 
 // associate a claim with an account role.
-func (s *accountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRoleRequest) (*pb.AddClaimToRoleResponse, error) {
+func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRoleRequest) (*pb.AddClaimToRoleResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -914,7 +914,7 @@ func (s *accountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRole
 }
 
 // remove a claim from an account role.
-func (s *accountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveClaimFromRoleRequest) (*pb.RemoveClaimFromRoleResponse, error) {
+func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveClaimFromRoleRequest) (*pb.RemoveClaimFromRoleResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -943,7 +943,7 @@ func (s *accountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveCla
 }
 
 // Helper to get account id from user id.
-func (s *accountAuth) HelperAccountIdFromUserid(userId int64) (int64, error) {
+func (s *AccountAuth) HelperAccountIdFromUserid(userId int64) (int64, error) {
 	sqlstring := `SELECT inbAccountId FROM tb_AccountUser WHERE inbUserId = ? AND bitIsDeleted = 0`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -965,7 +965,7 @@ func (s *accountAuth) HelperAccountIdFromUserid(userId int64) (int64, error) {
 }
 
 // Helper to get account id from role id.
-func (s *accountAuth) HelperAccountIdFromRoleId(roleId int64) (int64, error) {
+func (s *AccountAuth) HelperAccountIdFromRoleId(roleId int64) (int64, error) {
 	sqlstring := `SELECT inbAccountId FROM tb_AccountRole WHERE inbRoleId = ? AND bitIsDeleted = 0`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -987,7 +987,7 @@ func (s *accountAuth) HelperAccountIdFromRoleId(roleId int64) (int64, error) {
 }
 
 // Helper to get the claim name and claim value from claim value id
-func (s *accountAuth) HelperClaimFromClaimValueId(claimValueId int64) (string, string, error) {
+func (s *AccountAuth) HelperClaimFromClaimValueId(claimValueId int64) (string, string, error) {
 	var claimName string
 	var claimValue string
 	sqlstring := `SELECT c.chvClaimName, v.chvClaimVal FROM tb_ClaimValue AS v JOIN tb_Claim AS c ON v.inbClaimNameId = c.inbClaimNameId  
@@ -1005,7 +1005,7 @@ func (s *accountAuth) HelperClaimFromClaimValueId(claimValueId int64) (string, s
 	return claimName, claimValue, err
 }
 
-func (s *accountAuth) HelperRoleContains(roleId int64, claimName string, claimValue string) bool {
+func (s *AccountAuth) HelperRoleContains(roleId int64, claimName string, claimValue string) bool {
 
 	sqlstring := `SELECT c.chvClaimName,  v.chvClaimVal FROM tb_RoleClaimMap AS r JOIN  tb_ClaimValue AS v ON r.inbClaimValueId = v.inbClaimValueId  
 	JOIN tb_Claim AS c on v.inbClaimNameId = c.inbClaimNameId  where r.inbRoleId = ? AND r.bitIsDeleted = 0 AND 

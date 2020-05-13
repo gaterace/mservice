@@ -13,8 +13,13 @@
 # Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
 .glide/
 
+.idea/
+
 *~
 
 cmd/acctclient/acctclient
 cmd/acctserver/acctserver
 cmd/acctserver/log.txt
+cmd/acctservermux/acctservermux
+cmd/acctservermux/log.txt
+cmd/acctservermux/conf.yaml
