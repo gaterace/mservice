@@ -41,11 +41,14 @@ type accountService struct {
 	db               *sql.DB
 	rsaPSSPrivateKey *rsa.PrivateKey
 	leaseMinutes     int
+	startSecs        int64
 }
 
 // Get a new accountService instance.
 func NewAccountService() *accountService {
-	return &accountService{}
+	svc := accountService{}
+	svc.startSecs = time.Now().Unix()
+	return &svc
 }
 
 // Set the logger for the accountService instance.
@@ -184,4 +187,16 @@ func (s *accountService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.L
 	}
 
 	return resp, err
+}
+
+// get current server version and uptime - health check
+func (s *accountService) GetServerVersion(ctx context.Context, req *pb.GetServerVersionRequest) (*pb.GetServerVersionResponse, error) {
+	s.logger.Printf("GetServerVersion called\n")
+	resp := &pb.GetServerVersionResponse{}
+
+	currentSecs := time.Now().Unix()
+	resp.ServerVersion = "v0.9.2"
+	resp.ServerUptime = currentSecs - s.startSecs
+
+	return resp, nil
 }

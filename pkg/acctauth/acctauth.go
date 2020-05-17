@@ -268,6 +268,7 @@ func (s *AccountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountBy
 // Get account names within account.
 func (s *AccountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNamesRequest) (*pb.GetAccountNamesResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
+
 	if err == nil {
 		uid := GetInt64FromClaims(claims, "uid")
 		s.logger.Printf("uid: %d\n", uid)
@@ -1041,4 +1042,9 @@ func (s *AccountAuth) HelperRoleContains(roleId int64, claimName string, claimVa
 	}
 
 	return false
+}
+
+// get current server version and uptime - health check
+func (s *AccountAuth) GetServerVersion(ctx context.Context, req *pb.GetServerVersionRequest) (*pb.GetServerVersionResponse, error) {
+	return s.acctService.GetServerVersion(ctx, req)
 }

@@ -186,6 +186,8 @@ func main() {
 		fmt.Printf("    %s add_claim_to_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
 		fmt.Printf("    %s remove_claim_from_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
 
+		fmt.Printf("    %s get_server_version \n", prog)
+
 		os.Exit(1)
 	}
 
@@ -455,6 +457,8 @@ func main() {
 			fmt.Println("role_id parameter missing")
 			validParams = false
 		}
+	case "get_server_version":
+		validParams = true
 	default:
 		fmt.Printf("unknown command: %s\n", cmd)
 		validParams = false
@@ -1259,6 +1263,20 @@ func main() {
 		if err != nil {
 			fmt.Printf("err: %s\n", err)
 		}
-	}
 
+	case "get_server_version":
+		req := pb.GetServerVersionRequest{}
+		req.DummyParam = 1
+		resp, err := client.GetServerVersion(mctx, &req)
+		if err == nil {
+			jtext, err := json.MarshalIndent(resp, "", "  ")
+			if err == nil {
+				fmt.Println(string(jtext))
+			}
+		}
+
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+	}
 }

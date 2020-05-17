@@ -128,11 +128,11 @@ func main() {
 		logger.Fatalf("failed to create api server: %v", err)
 	}
 
-	logger.Println("starting server ...")
+	logger.Println("starting grpc server ...")
 
 	s.Serve(lis)
 
-	logger.Println("shutting down server ...")
+	logger.Println("shutting down grpc server ...")
 
 }
 

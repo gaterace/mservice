@@ -113,7 +113,11 @@ func main() {
 	logger.Println("starting server ...")
 
 	addrString := fmt.Sprintf(":%d", port)
-	err = http.ListenAndServe(addrString, r)
+	if tls {
+		err = http.ListenAndServeTLS(addrString, certFile, keyFile, r)
+	} else {
+		err = http.ListenAndServe(addrString, r)
+	}
 
 	logger.Println("shutting down server ...")
 

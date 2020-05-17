@@ -1,0 +1,10 @@
+# configuration for acctclient
+
+log_file: client_log.txt
+tls: true
+ca_file:  /home/harvill/gaterace_ssl/groca/cacert.pem
+server_host_override: api.gaterace.org
+server: 127.0.0.1
+port: 8080
+account: gaterace
+
