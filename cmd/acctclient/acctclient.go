@@ -115,9 +115,9 @@ func main() {
 	}
 
 	// log_file, _ := config.Get("log_file")
-	ca_file, _ := config.Get("ca_file")
+	caFile, _ := config.Get("ca_file")
 	tls, _ := config.GetBool("tls")
-	server_host_override, _ := config.Get("server_host_override")
+	serverHostOverride, _ := config.Get("server_host_override")
 	server, _ := config.Get("server")
 	port, _ := config.GetInt("port")
 	account, _ := config.Get("account")
@@ -481,13 +481,13 @@ func main() {
 	var opts []grpc.DialOption
 	if tls {
 		var sn string
-		if server_host_override != "" {
-			sn = server_host_override
+		if serverHostOverride != "" {
+			sn = serverHostOverride
 		}
 		var creds credentials.TransportCredentials
-		if ca_file != "" {
+		if caFile != "" {
 			var err error
-			creds, err = credentials.NewClientTLSFromFile(ca_file, sn)
+			creds, err = credentials.NewClientTLSFromFile(caFile, sn)
 			if err != nil {
 				grpclog.Fatalf("Failed to create TLS credentials %v", err)
 			}

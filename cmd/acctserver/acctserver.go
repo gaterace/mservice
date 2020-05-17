@@ -15,18 +15,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"log"
-	"net"
-	"os"
-	"strconv"
-
 	"github.com/gaterace/mservice/pkg/acctauth"
 	"github.com/gaterace/mservice/pkg/acctservice"
-
+	"github.com/gaterace/mservice/pkg/muxhandler"
+	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"time"
 
 	"github.com/kylelemons/go-gypsy/yaml"
 
@@ -51,6 +55,7 @@ func main() {
 	key_file, _ := config.Get("key_file")
 	tls, _ := config.GetBool("tls")
 	port, _ := config.GetInt("port")
+	rest_port, _ := config.GetInt("rest_port")
 	db_user, _ := config.Get("db_user")
 	db_pwd, _ := config.Get("db_pwd")
 	db_transport, _ := config.Get("db_transport")
@@ -128,12 +133,69 @@ func main() {
 		logger.Fatalf("failed to create api server: %v", err)
 	}
 
-	logger.Println("starting grpc server ...")
+	var srv *http.Server
 
-	s.Serve(lis)
+	if rest_port > 0 {
+		r := mux.NewRouter()
+		mh := muxhandler.NewMuxHandler(acctAuth, r)
+		mh.AddRoutes()
 
+		addrString := fmt.Sprintf(":%d", rest_port)
+		srv = &http.Server{
+			Addr:         addrString,
+			WriteTimeout: time.Second * 15,
+			ReadTimeout:  time.Second * 15,
+			Handler: r, // Pass our instance of gorilla/mux in.
+		}
+
+		go func() {
+			logger.Println("starting http server ...")
+			if tls {
+				err = srv.ListenAndServeTLS(cert_file, key_file)
+			} else {
+				err = srv.ListenAndServe()
+			}
+			if err != nil {
+				logger.Printf("ListenAndServe err: %s", err.Error())
+			}
+		}()
+	}
+
+
+	go func() {
+		logger.Println("starting grpc server ...")
+
+		err = s.Serve(lis)
+		if err != nil {
+			logger.Printf("grpc Serve err: %s", err.Error())
+		}
+	}()
+
+	c := make(chan os.Signal, 1)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
+	signal.Notify(c, os.Interrupt)
+
+	// Block until we receive our signal.
+	<-c
+
+	s.GracefulStop()
 	logger.Println("shutting down grpc server ...")
 
+	if srv != nil {
+		// Create a deadline to wait for.
+		wait, _ :=  time.ParseDuration("15s")
+
+		ctx, cancel := context.WithTimeout(context.Background(), wait)
+		defer cancel()
+		// Doesn't block if no connections, but will otherwise wait
+		// until the timeout deadline.
+		srv.Shutdown(ctx)
+
+		logger.Println("shutting down http server ...")
+	}
+
+	os.Exit(0)
 }
 
 // helper to set up database connections for acctservice server.

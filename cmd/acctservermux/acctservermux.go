@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"github.com/gaterace/mservice/pkg/acctauth"
@@ -26,6 +27,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"time"
 )
 
 func main() {
@@ -110,17 +113,48 @@ func main() {
 	mh := muxhandler.NewMuxHandler(acctAuth, r)
 	mh.AddRoutes()
 
-	logger.Println("starting server ...")
-
 	addrString := fmt.Sprintf(":%d", port)
-	if tls {
-		err = http.ListenAndServeTLS(addrString, certFile, keyFile, r)
-	} else {
-		err = http.ListenAndServe(addrString, r)
+
+	srv := &http.Server{
+		Addr:         addrString,
+		// Good practice to set timeouts to avoid Slowloris attacks.
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler: r, // Pass our instance of gorilla/mux in.
 	}
 
-	logger.Println("shutting down server ...")
+	go func() {
+		logger.Println("starting http server ...")
+		if tls {
+			err = srv.ListenAndServeTLS(certFile, keyFile)
+		} else {
+			err = srv.ListenAndServe()
+		}
+		if err != nil {
+			logger.Printf("ListenAndServe err: %s", err.Error())
+		}
+	}()
 
+	c := make(chan os.Signal, 1)
+	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
+	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
+	signal.Notify(c, os.Interrupt)
+
+	// Block until we receive our signal.
+	<-c
+
+	// Create a deadline to wait for.
+	wait, _ :=  time.ParseDuration("15s")
+
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	// Doesn't block if no connections, but will otherwise wait
+	// until the timeout deadline.
+	srv.Shutdown(ctx)
+
+	logger.Println("shutting down http server ...")
+	os.Exit(0)
 }
 
 // helper to set up database connections for acctservicemux server.

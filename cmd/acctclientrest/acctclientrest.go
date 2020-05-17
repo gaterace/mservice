@@ -1,4 +1,4 @@
-// Copyright 2019 Demian Harvill
+// Copyright 2019-2020 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Command line client for HTTP Rest acctservicemux.
+// Command line client for HTTP Rest acctservice.
 package main
 
 import (
@@ -111,7 +111,7 @@ func main() {
 	usr, err := user.Current()
 	if err == nil {
 		homeDir := usr.HomeDir
-		configFilename = homeDir + string(os.PathSeparator) + ".mservicemux.config"
+		configFilename = homeDir + string(os.PathSeparator) + ".mservice.config"
 	}
 
 	config, err := yaml.ReadFile(configFilename)
@@ -124,7 +124,7 @@ func main() {
 	useTls, _ := config.GetBool("tls")
 	server_host_override, _ := config.Get("server_host_override")
 	server, _ := config.Get("server")
-	port, _ := config.GetInt("port")
+	rest_port, _ := config.GetInt("rest_port")
 	account, _ := config.Get("account")
 
 	// fmt.Printf("log_file: %s\n", log_file)
@@ -134,11 +134,11 @@ func main() {
 	// fmt.Printf("server_host_override: %s\n", server_host_override)
 
 	// fmt.Printf("server: %s\n", server)
-	// fmt.Printf("port: %d\n", port)
+	// fmt.Printf("rest_port: %d\n", rest_port)
 	// fmt.Printf("account: %s\n", account)
 
-	if port == 0 {
-		port = 50051
+	if rest_port == 0 {
+		rest_port = 51051
 	}
 
 	if len(flag.Args()) > 0 {
@@ -585,9 +585,9 @@ func main() {
 	var serverAddr string
 
 	if useTls {
-		serverAddr = "https://" + server + ":" + strconv.Itoa(int(port))
+		serverAddr = "https://" + server + ":" + strconv.Itoa(int(rest_port))
 	} else {
-		serverAddr = "http://" + server + ":" + strconv.Itoa(int(port))
+		serverAddr = "http://" + server + ":" + strconv.Itoa(int(rest_port))
 	}
 	// fmt.Printf("address: %s\n", address)
 
