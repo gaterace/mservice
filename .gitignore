@@ -26,3 +26,5 @@ cmd/acctservermux/acctservermux
 cmd/acctservermux/log.txt
 cmd/acctservermux/conf.yaml
 cmd/acctclientrest/acctclientrest
+cmd/acctclientrest/conf.yaml
+
