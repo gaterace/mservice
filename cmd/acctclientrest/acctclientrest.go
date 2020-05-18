@@ -66,13 +66,11 @@ var role_name string
 var role_id int64
 
 func init() {
-	// flag.StringVar(&cmd, "c", "", "acctclient command")
 	flag.StringVar(&account_name, "a", "", "name for account")
 	flag.StringVar(&account_name, "account_name", "", "name for account")
 	flag.StringVar(&email, "e", "", "email address")
 	flag.StringVar(&email, "email", "", "email address")
 	flag.StringVar(&password, "password", "", "password for login")
-	// flag.StringVar(p, "", "", "")
 	flag.StringVar(&account_long_name, "account_long_name", "", "long name for account")
 	flag.IntVar(&account_type, "account_type", 0, "account_type")
 	flag.StringVar(&address1, "address1", "", "account address line 1")

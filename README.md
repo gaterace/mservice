@@ -1,6 +1,6 @@
 # MService
 
-Copyright 2019 Demian Harvill
+Copyright 2019-2020 Demian Harvill
 
 ## Overview
 
@@ -12,6 +12,8 @@ microservices to gain access to methods in those microservices.
 The JWT encodes the login user and account, as well as the claims associated with that login. The JWT is signed with with an
 RSA private key (known only to the MService microservice), but can be verified by the RSA public key (known to all associated microservices). 
 The JWT is passed to microservices using the gRPC context. The lifetime of the JWT is configurable.
+
+As of version v0.9.2, the acctserver can optionally support HTTP Rest requests on a separate port. 
 
 ## Usage 
 
@@ -164,6 +166,10 @@ authorize subsequent calls.
 
 Note that the use of the Go acctclient is merely a convenience, and not a requirement. Since we are using gRPC, the thin client
 can be written in any supported language.  It can be part of a web or mobile application for example.
+
+A second command line client written in Go is available to demonstrate HTTP Rest calls: **acctclientrest**. The usage is the same
+as acctclient, except the HTTP Rest transport is used instead of gRPC.
+
 
 ## Claims and Roles ##
 

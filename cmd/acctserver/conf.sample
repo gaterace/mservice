@@ -8,8 +8,10 @@ tls: true
 cert_file: < cert.pem location >
 # location of key  file for TLS
 key_file: < key.pem location >
-# host port for communication
+# host grpc port for communication
 port: 50051
+# set to different non-zero port for http rest support
+rest_port: 0
 # mysql user for connection
 db_user: myuser
 # mysql user password for connection
