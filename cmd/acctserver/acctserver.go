@@ -17,6 +17,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"time"
+	"github.com/rs/cors"
+
 	"github.com/gaterace/mservice/pkg/acctauth"
 	"github.com/gaterace/mservice/pkg/acctservice"
 	"github.com/gaterace/mservice/pkg/muxhandler"
@@ -24,13 +34,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
-	"log"
-	"net"
-	"net/http"
-	"os"
-	"os/signal"
-	"strconv"
-	"time"
 
 	"github.com/kylelemons/go-gypsy/yaml"
 
@@ -62,17 +65,20 @@ func main() {
 	jwt_pub_file, _ := config.Get("jwt_pub_file")
 	jwt_private_file, _ := config.Get("jwt_private_file")
 	lease_minutes, _ := config.GetInt("lease_minutes")
+	cors_origin, _ := config.Get("cors_origin")
 
 	fmt.Printf("log_file: %s\n", log_file)
 	fmt.Printf("cert_file: %s\n", cert_file)
 	fmt.Printf("key_file: %s\n", key_file)
 	fmt.Printf("tls: %t\n", tls)
 	fmt.Printf("port: %d\n", port)
+	fmt.Printf("rest_port: %d\n", rest_port)
 	fmt.Printf("db_user: %s\n", db_user)
 	fmt.Printf("db_transport: %s\n", db_transport)
 	fmt.Printf("jwt_pub_file: %s\n", jwt_pub_file)
 	fmt.Printf("jwt_private_file: %s\n", jwt_private_file)
 	fmt.Printf("lease_minutes: %d\n", lease_minutes)
+	fmt.Printf("cors_origin: %s\n", cors_origin)
 
 	logfile, _ := os.Create(log_file)
 	defer logfile.Close()
@@ -140,12 +146,26 @@ func main() {
 		mh := muxhandler.NewMuxHandler(acctAuth, r)
 		mh.AddRoutes()
 
+		var handler http.Handler
+		if cors_origin != "" {
+			origins := strings.Split(cors_origin, ",")
+			c := cors.New(cors.Options{
+				AllowedOrigins: origins,
+				AllowCredentials: true,
+				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+			})
+
+			handler = c.Handler(r)
+		} else {
+			handler = r
+		}
+
 		addrString := fmt.Sprintf(":%d", rest_port)
 		srv = &http.Server{
 			Addr:         addrString,
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
-			Handler: r, // Pass our instance of gorilla/mux in.
+			Handler:      handler, // Pass our instance of gorilla/mux in.
 		}
 
 		go func() {
@@ -160,7 +180,6 @@ func main() {
 			}
 		}()
 	}
-
 
 	go func() {
 		logger.Println("starting grpc server ...")
@@ -184,7 +203,7 @@ func main() {
 
 	if srv != nil {
 		// Create a deadline to wait for.
-		wait, _ :=  time.ParseDuration("15s")
+		wait, _ := time.ParseDuration("15s")
 
 		ctx, cancel := context.WithTimeout(context.Background(), wait)
 		defer cancel()

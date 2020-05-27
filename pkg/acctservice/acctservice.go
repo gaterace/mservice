@@ -195,7 +195,7 @@ func (s *accountService) GetServerVersion(ctx context.Context, req *pb.GetServer
 	resp := &pb.GetServerVersionResponse{}
 
 	currentSecs := time.Now().Unix()
-	resp.ServerVersion = "v0.9.2"
+	resp.ServerVersion = "v0.9.3"
 	resp.ServerUptime = currentSecs - s.startSecs
 
 	return resp, nil

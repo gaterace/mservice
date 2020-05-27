@@ -12,6 +12,8 @@ key_file: < key.pem location >
 port: 50051
 # set to different non-zero port for http rest support
 rest_port: 0
+# if using http rest support and need CORS support as well, provide comma sepatared list of origins
+cors_origin: http://localhost:8080
 # mysql user for connection
 db_user: myuser
 # mysql user password for connection
