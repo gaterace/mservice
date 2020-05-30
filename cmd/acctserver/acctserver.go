@@ -153,8 +153,10 @@ func main() {
 				AllowedOrigins: origins,
 				AllowCredentials: true,
 				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+				AllowedHeaders: []string{"*"},
+				// Debug: true,
 			})
-
+            logger.Printf("using cors\n")
 			handler = c.Handler(r)
 		} else {
 			handler = r
