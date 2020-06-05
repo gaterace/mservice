@@ -19,7 +19,9 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"time"
 
 	"database/sql"
 
@@ -35,7 +37,7 @@ import (
 // Message receiver for account authorization.
 type AccountAuth struct {
 	// For log messages.
-	logger *log.Logger
+	logger log.Logger
 	// SQL database connection.
 	db *sql.DB
 	// Public key for JWT validation.
@@ -52,7 +54,7 @@ func NewAccountAuth(acctService pb.MServiceAccountServer) *AccountAuth {
 }
 
 // Set the logger for account authorization.
-func (s *AccountAuth) SetLogger(logger *log.Logger) {
+func (s *AccountAuth) SetLogger(logger log.Logger) {
 	s.logger = logger
 }
 
@@ -60,13 +62,13 @@ func (s *AccountAuth) SetLogger(logger *log.Logger) {
 func (s *AccountAuth) SetPublicKey(publicKeyFile string) error {
 	publicKey, err := ioutil.ReadFile(publicKeyFile)
 	if err != nil {
-		s.logger.Printf("error reading publicKeyFile: %v\n", err)
+		level.Error(s.logger).Log("what", "reading publicKeyFile", "error", err)
 		return err
 	}
 
 	parsedKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKey)
 	if err != nil {
-		s.logger.Printf("error parsing publicKeyFile: %v\n", err)
+		level.Error(s.logger).Log("what", "ParseRSAPublicKeyFromPEM", "error", err)
 		return err
 	}
 
@@ -102,7 +104,7 @@ func (s *AccountAuth) GetJwtFromContext(ctx context.Context) (*map[string]interf
 
 	tokenString := tokens[0]
 
-	s.logger.Printf("tokenString: %s\n", tokenString)
+	level.Debug(s.logger).Log("tokenString", tokenString)
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
@@ -124,8 +126,6 @@ func (s *AccountAuth) GetJwtFromContext(ctx context.Context) (*map[string]interf
 	}
 
 	claims := map[string]interface{}(token.Claims.(jwt.MapClaims))
-
-	s.logger.Printf("claims: %v\n", claims)
 
 	return &claims, nil
 
@@ -161,156 +161,196 @@ func GetStringFromClaims(claims *map[string]interface{}, key string) string {
 
 // login does not require previous authorization.
 func (s *AccountAuth) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+	start := time.Now().UnixNano()
 	resp, err := s.acctService.Login(ctx, req)
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "Login", "email", req.GetEmail(),
+		"account", req.GetAccountName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 	return resp, err
 }
 
 // create a new account
 func (s *AccountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.CreateAccountResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		if acctmgt == "admin" {
-			return s.acctService.CreateAccount(ctx, req)
+			resp, err =  s.acctService.CreateAccount(ctx, req)
 		}
 	}
 
-	resp := &pb.CreateAccountResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "CreateAccount",
+		"account", req.GetAccountName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // update an existing account.
 func (s *AccountAuth) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.UpdateAccountResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.UpdateAccountResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		actname := GetStringFromClaims(claims, "actname")
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == req.GetAccountName())) {
-			return s.acctService.UpdateAccount(ctx, req)
+			resp, err = s.acctService.UpdateAccount(ctx, req)
 		}
 	}
 
-	resp := &pb.UpdateAccountResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "UpdateAccount",
+		"account", req.GetAccountName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // delete an existing account.
 func (s *AccountAuth) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRequest) (*pb.DeleteAccountResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
-			return s.acctService.DeleteAccount(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.DeleteAccountResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "admin" {
+			resp, err = s.acctService.DeleteAccount(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "DeleteAccount",
+		"accountid", req.GetAccountId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // get an account by account id.
 func (s *AccountAuth) GetAccountById(ctx context.Context, req *pb.GetAccountByIdRequest) (*pb.GetAccountByIdResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetAccountByIdResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
-		s.logger.Printf("acctmgt: %s\n", acctmgt)
-		s.logger.Printf("aid: %d\n", aid)
-		s.logger.Printf("accountId: %d\n", accountId)
 
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) || ((acctmgt == "acctro") && (aid == accountId)) {
-			return s.acctService.GetAccountById(ctx, req)
+			resp, err = s.acctService.GetAccountById(ctx, req)
 		}
 	}
 
-	resp := &pb.GetAccountByIdResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountById",
+		"accountid", req.GetAccountId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // get an account by account name.
 func (s *AccountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountByNameRequest) (*pb.GetAccountByNameResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		uid := GetInt64FromClaims(claims, "uid")
-		s.logger.Printf("uid: %d\n", uid)
-		actname := GetStringFromClaims(claims, "actname")
-		s.logger.Printf("actname: %s\n", actname)
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		s.logger.Printf("acctmgt: %s\n", acctmgt)
-		reqAccount := req.GetAccountName()
-
-		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == reqAccount)) || ((acctmgt == "acctro") && (actname == reqAccount)) {
-			s.logger.Println("authorized")
-			return s.acctService.GetAccountByName(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.GetAccountByNameResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		// uid := GetInt64FromClaims(claims, "uid")
+		actname := GetStringFromClaims(claims, "actname")
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		reqAccount := req.GetAccountName()
+		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == reqAccount)) || ((acctmgt == "acctro") && (actname == reqAccount)) {
+			resp, err = s.acctService.GetAccountByName(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountByName",
+		"account", req.GetAccountName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // Get account names within account.
 func (s *AccountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNamesRequest) (*pb.GetAccountNamesResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-
-	if err == nil {
-		uid := GetInt64FromClaims(claims, "uid")
-		s.logger.Printf("uid: %d\n", uid)
-		actname := GetStringFromClaims(claims, "actname")
-		s.logger.Printf("actname: %s\n", actname)
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		s.logger.Printf("acctmgt: %s\n", acctmgt)
-
-		if acctmgt == "admin" {
-			s.logger.Println("authorized")
-			return s.acctService.GetAccountNames(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.GetAccountNamesResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+
+	if err == nil {
+		// uid := GetInt64FromClaims(claims, "uid")
+		// actname := GetStringFromClaims(claims, "actname")
+
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+
+		if acctmgt == "admin" {
+			resp, err = s.acctService.GetAccountNames(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountNames",
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+
+	return resp, err
 }
 
 // create an account user.
 func (s *AccountAuth) CreateAccountUser(ctx context.Context, req *pb.CreateAccountUserRequest) (*pb.CreateAccountUserResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.CreateAccountUserResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
-			return s.acctService.CreateAccountUser(ctx, req)
+			resp, err = s.acctService.CreateAccountUser(ctx, req)
 		}
 	}
 
-	resp := &pb.CreateAccountUserResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "CreateAccountUser",
+		"email", req.GetEmail(),
+		"accountid", req.GetAccountId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // update an existing account user.
 func (s *AccountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccountUserRequest) (*pb.UpdateAccountUserResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.UpdateAccountUserResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	var ok bool
 
 	claims, err := s.GetJwtFromContext(ctx)
@@ -332,19 +372,26 @@ func (s *AccountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccou
 		}
 
 		if ok {
-			return s.acctService.UpdateAccountUser(ctx, req)
+			resp, err = s.acctService.UpdateAccountUser(ctx, req)
 		}
 	}
 
-	resp := &pb.UpdateAccountUserResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "UpdateAccountUser",
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // update an existing account user password.
-func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context, req *pb.UpdateAccountUserPasswordRequest) (*pb.UpdateAccountUserPasswordResponse, error) {
+func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
+	req *pb.UpdateAccountUserPasswordRequest) (*pb.UpdateAccountUserPasswordResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.UpdateAccountUserPasswordResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	var ok bool
 
 	claims, err := s.GetJwtFromContext(ctx)
@@ -366,20 +413,26 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context, req *pb.Upd
 		}
 
 		if ok {
-			return s.acctService.UpdateAccountUserPassword(ctx, req)
+			resp, err = s.acctService.UpdateAccountUserPassword(ctx, req)
 		}
 	}
 
-	resp := &pb.UpdateAccountUserPasswordResponse{}
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "UpdateAccountUserPassword",
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	return resp, err
 }
 
 // delete an existing account user.
 func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccountUserRequest) (*pb.DeleteAccountUserResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.DeleteAccountUserResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	var ok bool
 
 	claims, err := s.GetJwtFromContext(ctx)
@@ -401,20 +454,25 @@ func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccou
 		}
 
 		if ok {
-			return s.acctService.DeleteAccountUser(ctx, req)
+			resp, err =  s.acctService.DeleteAccountUser(ctx, req)
 		}
 	}
 
-	resp := &pb.DeleteAccountUserResponse{}
-
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "DeleteAccountUser",
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
 	return resp, nil
 }
 
 // get an account user by id.
 func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccountUserByIdRequest) (*pb.GetAccountUserByIdResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetAccountUserByIdResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -433,25 +491,32 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 		}
 
 		if ok {
-			resp, err := s.acctService.GetAccountUserById(ctx, req)
-			if !postCheckAccount {
-				return resp, err
-			}
-			if postCheckAccount && (resp.GetAccountUser() != nil) && (resp.GetAccountUser().GetAccountId() == aid) {
-				return resp, err
+			resp, err = s.acctService.GetAccountUserById(ctx, req)
+
+			if postCheckAccount && (resp.GetAccountUser() == nil) || (resp.GetAccountUser().GetAccountId() != aid) {
+				resp.ErrorCode = 401
+				resp.ErrorMessage = "not authorized"
+				resp.AccountUser = nil
 			}
 		}
 	}
 
-	resp := &pb.GetAccountUserByIdResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountUserById",
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // get an account user by email.
 func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAccountUserByEmailRequest) (*pb.GetAccountUserByEmailResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetAccountUserByEmailResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -472,236 +537,322 @@ func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAcco
 		}
 
 		if ok {
-			resp, err := s.acctService.GetAccountUserByEmail(ctx, req)
+			resp, err = s.acctService.GetAccountUserByEmail(ctx, req)
 			if !postCheckAccount && !postCheckUserid {
 				return resp, err
 			}
-			if postCheckAccount && (resp.GetAccountUser() != nil) && (resp.GetAccountUser().GetAccountId() == aid) {
-				return resp, err
+			if postCheckAccount && (resp.GetAccountUser() == nil) || (resp.GetAccountUser().GetAccountId() != aid) {
+				resp.ErrorCode = 401
+				resp.ErrorMessage = "not authorized"
+				resp.AccountUser = nil
 			}
-			if postCheckUserid && (resp.GetAccountUser() != nil) && (resp.GetAccountUser().GetUserId() == uid) {
-				return resp, err
+			if postCheckUserid && (resp.GetAccountUser() == nil) || (resp.GetAccountUser().GetUserId() != uid) {
+				resp.ErrorCode = 401
+				resp.ErrorMessage = "not authorized"
+				resp.AccountUser = nil
 			}
 		}
 	}
 
-	resp := &pb.GetAccountUserByEmailResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountUserByEmail",
+		"email", req.GetEmail(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+
+	return resp, err
 }
 
 // get all account users in account.
 func (s *AccountAuth) GetAccountUsers(ctx context.Context, req *pb.GetAccountUsersRequest) (*pb.GetAccountUsersResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetAccountUsersResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		actname := GetStringFromClaims(claims, "actname")
 		reqAccount := req.GetAccountName()
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == reqAccount)) || ((acctmgt == "acctro") && (actname == reqAccount)) {
-			return s.acctService.GetAccountUsers(ctx, req)
+			resp, err = s.acctService.GetAccountUsers(ctx, req)
 		}
 	}
 
-	resp := &pb.GetAccountUsersResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountUsers",
+		"account", req.GetAccountName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // create a claim name.
 func (s *AccountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNameRequest) (*pb.CreateClaimNameResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
-			return s.acctService.CreateClaimName(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.CreateClaimNameResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "admin" {
+			resp, err =  s.acctService.CreateClaimName(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "CreateClaimName",
+		"claim", req.GetClaimName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // update an existing claim name.
 func (s *AccountAuth) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNameRequest) (*pb.UpdateClaimNameResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
-			return s.acctService.UpdateClaimName(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.UpdateClaimNameResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "admin" {
+			resp, err = s.acctService.UpdateClaimName(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "UpdateClaimName",
+		"claimid", req.GetClaimNameId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // delete an existing claim name.
 func (s *AccountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNameRequest) (*pb.DeleteClaimNameResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
-			return s.acctService.DeleteClaimName(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.DeleteClaimNameResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "admin" {
+			resp, err = s.acctService.DeleteClaimName(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "DeleteClaimName",
+		"claimid", req.GetClaimNameId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // get all claim names.
 func (s *AccountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRequest) (*pb.GetClaimNamesResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
-			return s.acctService.GetClaimNames(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.GetClaimNamesResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+			resp, err = s.acctService.GetClaimNames(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetClaimNames",
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // create claim value.
 func (s *AccountAuth) CreateClaimValue(ctx context.Context, req *pb.CreateClaimValueRequest) (*pb.CreateClaimValueResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
-			return s.acctService.CreateClaimValue(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.CreateClaimValueResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "admin" {
+			resp, err = s.acctService.CreateClaimValue(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "CreateClaimValue",
+		"claimval", req.GetClaimVal(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // update existing claim value.
 func (s *AccountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimValueRequest) (*pb.UpdateClaimValueResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
-			return s.acctService.UpdateClaimValue(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.UpdateClaimValueResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "admin" {
+			resp, err =  s.acctService.UpdateClaimValue(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "UpdateClaimValue",
+		"claimvalid", req.GetClaimValueId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // delete existing claim value.
 func (s *AccountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimValueRequest) (*pb.DeleteClaimValueResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
-			return s.acctService.DeleteClaimValue(ctx, req)
-		}
-	}
-
+	start := time.Now().UnixNano()
 	resp := &pb.DeleteClaimValueResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
-}
-
-// get claim value by id.
-func (s *AccountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimValueByIdRequest) (*pb.GetClaimValueByIdResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
-			return s.acctService.GetClaimValueById(ctx, req)
-		}
-	}
-
-	resp := &pb.GetClaimValueByIdResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
-
-	return resp, nil
-}
-
-// get all claim values for name id.
-func (s *AccountAuth) GetClaimValuesByNameId(ctx context.Context, req *pb.GetClaimValuesByNameIdRequest) (*pb.GetClaimValuesByNameIdResponse, error) {
-	claims, err := s.GetJwtFromContext(ctx)
-	if err == nil {
-		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
-			return s.acctService.GetClaimValuesByNameId(ctx, req)
-		}
-	}
-
-	resp := &pb.GetClaimValuesByNameIdResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
-
-	return resp, nil
-}
-
-// get all claim values for all claim names.
-func (s *AccountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValuesRequest) (*pb.GetClaimValuesResponse, error) {
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		if acctmgt == "admin" {
-			return s.acctService.GetClaimValues(ctx, req)
+			resp, err =  s.acctService.DeleteClaimValue(ctx, req)
 		}
-
 	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "DeleteClaimValue",
+		"claimvalid", req.GetClaimValueId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+}
+
+// get claim value by id.
+func (s *AccountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimValueByIdRequest) (*pb.GetClaimValueByIdResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetClaimValueByIdResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+			resp, err = s.acctService.GetClaimValueById(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetClaimValueById",
+		"claimvalid", req.GetClaimValueId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+
+	return resp, err
+}
+
+// get all claim values for name id.
+func (s *AccountAuth) GetClaimValuesByNameId(ctx context.Context,
+	req *pb.GetClaimValuesByNameIdRequest) (*pb.GetClaimValuesByNameIdResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetClaimValuesByNameIdResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+			resp, err = s.acctService.GetClaimValuesByNameId(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetClaimValuesByNameId",
+		"claimid", req.GetClaimNameId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+
+	return resp, err
+}
+
+// get all claim values for all claim names.
+func (s *AccountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValuesRequest) (*pb.GetClaimValuesResponse, error) {
+	start := time.Now().UnixNano()
 	resp := &pb.GetClaimValuesResponse{}
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "admin" {
+			resp, err = s.acctService.GetClaimValues(ctx, req)
+		}
+
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetClaimValues",
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }
 
 // create account role.
 func (s *AccountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccountRoleRequest) (*pb.CreateAccountRoleResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.CreateAccountRoleResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
-			return s.acctService.CreateAccountRole(ctx, req)
+			resp, err =  s.acctService.CreateAccountRole(ctx, req)
 		}
 	}
 
-	resp := &pb.CreateAccountRoleResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "CreateAccountRole",
+		"accountid", req.GetAccountId(),
+		"role", req.GetRoleName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // update existing account role.
 func (s *AccountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccountRoleRequest) (*pb.UpdateAccountRoleResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.UpdateAccountRoleResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -717,21 +868,26 @@ func (s *AccountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccou
 			}
 		}
 		if ok {
-			return s.acctService.UpdateAccountRole(ctx, req)
+			resp, err = s.acctService.UpdateAccountRole(ctx, req)
 		}
 
 	}
 
-	resp := &pb.UpdateAccountRoleResponse{}
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "UpdateAccountRole",
+		"roleid", req.GetRoleId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
-
-	return resp, nil
+	return resp, err
 }
 
 // delete existing account role.
 func (s *AccountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccountRoleRequest) (*pb.DeleteAccountRoleResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.DeleteAccountRoleResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -747,21 +903,25 @@ func (s *AccountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccou
 			}
 		}
 		if ok {
-			return s.acctService.DeleteAccountRole(ctx, req)
+			resp, err = s.acctService.DeleteAccountRole(ctx, req)
 		}
-
 	}
 
-	resp := &pb.DeleteAccountRoleResponse{}
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "DeleteAccountRole",
+		"roleid", req.GetRoleId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
-
-	return resp, nil
+	return resp, err
 }
 
 // get account role by id.
 func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccountRoleByIdRequest) (*pb.GetAccountRoleByIdResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetAccountRoleByIdResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -777,47 +937,59 @@ func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccount
 			}
 		}
 		if ok {
-			return s.acctService.GetAccountRoleById(ctx, req)
+			resp, err = s.acctService.GetAccountRoleById(ctx, req)
 		}
 
 	}
 
-	resp := &pb.GetAccountRoleByIdResponse{}
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountRoleById",
+		"roleid", req.GetRoleId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	return resp, err
 }
 
 // get all account roles in account.
 func (s *AccountAuth) GetAccountRoles(ctx context.Context, req *pb.GetAccountRolesRequest) (*pb.GetAccountRolesResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetAccountRolesResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
-			return s.acctService.GetAccountRoles(ctx, req)
+			resp, err = s.acctService.GetAccountRoles(ctx, req)
 		}
 	}
 
-	resp := &pb.GetAccountRolesResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetAccountRoles",
+		"accountid", req.GetAccountId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // associate an account user with an account role.
 func (s *AccountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRequest) (*pb.AddUserToRoleResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.AddUserToRoleResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
-		s.logger.Printf("AddUserToRole acctmgt: %s, aid: %d, roleId: %d", acctmgt, aid, roleId)
+
 		if acctmgt == "admin" {
 			ok = true
 		} else if acctmgt == "acctrw" {
@@ -827,27 +999,33 @@ func (s *AccountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRe
 				// avoid privilege escalation
 				roleMatch := s.HelperRoleContains(roleId, "acctmgt", "admin")
 				if roleMatch {
-					s.logger.Printf("AddUserToRole privilege escalation attempted, roleId: %d", roleId)
+					level.Warn(s.logger).Log("msg", fmt.Sprintf("AddUserToRole privilege escalation attempted, roleId: %d", roleId))
 				}
 				ok = !roleMatch
 			}
 		}
 		if ok {
-			return s.acctService.AddUserToRole(ctx, req)
+			resp, err = s.acctService.AddUserToRole(ctx, req)
 		}
-
 	}
 
-	resp := &pb.AddUserToRoleResponse{}
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "AddUserToRole",
+		"roleid", req.GetRoleId(),
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
 
-	return resp, nil
+	return resp, err
 }
 
 // disassociate an account user from an account role.
 func (s *AccountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUserFromRoleRequest) (*pb.RemoveUserFromRoleResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.RemoveUserFromRoleResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -863,21 +1041,26 @@ func (s *AccountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUser
 			}
 		}
 		if ok {
-			return s.acctService.RemoveUserFromRole(ctx, req)
+			resp, err = s.acctService.RemoveUserFromRole(ctx, req)
 		}
-
 	}
 
-	resp := &pb.RemoveUserFromRoleResponse{}
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "RemoveUserFromRole",
+		"roleid", req.GetRoleId(),
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
-
-	return resp, nil
+	return resp, err
 }
 
 // associate a claim with an account role.
 func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRoleRequest) (*pb.AddClaimToRoleResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.AddClaimToRoleResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -893,7 +1076,7 @@ func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRole
 				claimName, claimValue, err := s.HelperClaimFromClaimValueId(req.GetClaimValueId())
 				if err == nil {
 					if claimName == "acctmgt" && claimValue == "admin" {
-						s.logger.Printf("AddClaimToRole privilege escalation attemped, role: %d", roleId)
+						level.Warn(s.logger).Log("msg", fmt.Sprintf("AddClaimToRole privilege escalation attempted, roleId: %d", roleId))
 					} else {
 						ok = true
 					}
@@ -901,21 +1084,26 @@ func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRole
 			}
 		}
 		if ok {
-			return s.acctService.AddClaimToRole(ctx, req)
+			resp, err = s.acctService.AddClaimToRole(ctx, req)
 		}
-
 	}
 
-	resp := &pb.AddClaimToRoleResponse{}
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "AddClaimToRole",
+		"roleid", req.GetRoleId(),
+		"claimvalid", req.GetClaimValueId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
-
-	return resp, nil
+	return resp, err
 }
 
 // remove a claim from an account role.
 func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveClaimFromRoleRequest) (*pb.RemoveClaimFromRoleResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.RemoveClaimFromRoleResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		var ok bool
@@ -931,16 +1119,18 @@ func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveCla
 			}
 		}
 		if ok {
-			return s.acctService.RemoveClaimFromRole(ctx, req)
+			resp, err = s.acctService.RemoveClaimFromRole(ctx, req)
 		}
 
 	}
 
-	resp := &pb.RemoveClaimFromRoleResponse{}
-	resp.ErrorCode = 401
-	resp.ErrorMessage = "not authorized"
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "RemoveClaimFromRole",
+		"roleid", req.GetRoleId(),
+		"claimvalid", req.GetClaimValueId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
 
-	return resp, nil
+	return resp, err
 }
 
 // Helper to get account id from user id.
@@ -948,7 +1138,7 @@ func (s *AccountAuth) HelperAccountIdFromUserid(userId int64) (int64, error) {
 	sqlstring := `SELECT inbAccountId FROM tb_AccountUser WHERE inbUserId = ? AND bitIsDeleted = 0`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return 0, err
 	}
 
@@ -958,7 +1148,7 @@ func (s *AccountAuth) HelperAccountIdFromUserid(userId int64) (int64, error) {
 	err = stmt.QueryRow(userId).Scan(&accountId)
 
 	if err != nil {
-		s.logger.Printf("dquery row failed: %v\n", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		return 0, err
 	}
 
@@ -970,7 +1160,7 @@ func (s *AccountAuth) HelperAccountIdFromRoleId(roleId int64) (int64, error) {
 	sqlstring := `SELECT inbAccountId FROM tb_AccountRole WHERE inbRoleId = ? AND bitIsDeleted = 0`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return 0, err
 	}
 
@@ -980,7 +1170,7 @@ func (s *AccountAuth) HelperAccountIdFromRoleId(roleId int64) (int64, error) {
 	err = stmt.QueryRow(roleId).Scan(&accountId)
 
 	if err != nil {
-		s.logger.Printf("dquery row failed: %v\n", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		return 0, err
 	}
 
@@ -995,7 +1185,7 @@ func (s *AccountAuth) HelperClaimFromClaimValueId(claimValueId int64) (string, s
 	WHERE v.inbClaimValueId = ? AND v.bitIsDeleted = 0 AND c.bitIsDeleted = 0`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return claimName, claimValue, err
 	}
 
@@ -1014,7 +1204,7 @@ func (s *AccountAuth) HelperRoleContains(roleId int64, claimName string, claimVa
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return false
 	}
 

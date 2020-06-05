@@ -16,6 +16,7 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
 
@@ -26,7 +27,6 @@ import (
 
 // create account role
 func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAccountRoleRequest) (*pb.CreateAccountRoleResponse, error) {
-	s.logger.Printf("CreateAccountRole called for %s\n", req.GetRoleName())
 	resp := &pb.CreateAccountRoleResponse{}
 	var err error
 
@@ -34,7 +34,7 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring1 failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -48,7 +48,7 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 	if err != nil {
 		resp.ErrorCode = 502
 		resp.ErrorMessage = "unable to match existing account"
-		s.logger.Printf("unable to match existng account: %s\n", err.Error())
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		return resp, nil
 
 	}
@@ -58,7 +58,7 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -70,9 +70,9 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 	if err == nil {
 		roleId, err := res.LastInsertId()
 		if err != nil {
-			s.logger.Printf("LastInsertId err: %v\n", err)
+			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
 		} else {
-			s.logger.Printf("roleId %d", roleId)
+			level.Debug(s.logger).Log("roleId", roleId)
 		}
 
 		resp.RoleId = roleId
@@ -80,7 +80,7 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -89,7 +89,6 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 
 // update existing account role
 func (s *accountService) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccountRoleRequest) (*pb.UpdateAccountRoleResponse, error) {
-	s.logger.Printf("UpdateAccountRole called for %d\n", req.GetRoleId())
 	resp := &pb.UpdateAccountRoleResponse{}
 	var err error
 
@@ -98,7 +97,7 @@ func (s *accountService) UpdateAccountRole(ctx context.Context, req *pb.UpdateAc
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -119,7 +118,7 @@ func (s *accountService) UpdateAccountRole(ctx context.Context, req *pb.UpdateAc
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -128,7 +127,6 @@ func (s *accountService) UpdateAccountRole(ctx context.Context, req *pb.UpdateAc
 
 // delete existing account role
 func (s *accountService) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccountRoleRequest) (*pb.DeleteAccountRoleResponse, error) {
-	s.logger.Printf("DeleteAccountRole called for %d\n", req.GetRoleId())
 	resp := &pb.DeleteAccountRoleResponse{}
 	var err error
 
@@ -137,7 +135,7 @@ func (s *accountService) DeleteAccountRole(ctx context.Context, req *pb.DeleteAc
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -157,7 +155,7 @@ func (s *accountService) DeleteAccountRole(ctx context.Context, req *pb.DeleteAc
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -166,7 +164,6 @@ func (s *accountService) DeleteAccountRole(ctx context.Context, req *pb.DeleteAc
 
 // get account role by id
 func (s *accountService) GetAccountRoleById(ctx context.Context, req *pb.GetAccountRoleByIdRequest) (*pb.GetAccountRoleByIdResponse, error) {
-	s.logger.Printf("GetAccountRoleById called for %d\n", req.GetRoleId())
 	resp := &pb.GetAccountRoleByIdResponse{}
 	var err error
 
@@ -175,7 +172,7 @@ func (s *accountService) GetAccountRoleById(ctx context.Context, req *pb.GetAcco
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -203,7 +200,7 @@ func (s *accountService) GetAccountRoleById(ctx context.Context, req *pb.GetAcco
 		resp.ErrorMessage = "not found"
 		err = nil
 	} else {
-		s.logger.Printf("queryRow failed: %v\n", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		err = nil
@@ -214,7 +211,6 @@ func (s *accountService) GetAccountRoleById(ctx context.Context, req *pb.GetAcco
 
 // get the claim values and claims for a role.
 func (s *accountService) GetClaimValuesByRoleById(roleId int64) ([]*pb.ClaimValue, error) {
-	s.logger.Printf("GetClaimValuesByRoleById called for %d\n", roleId)
 	var res []*pb.ClaimValue
 	var err error
 
@@ -229,14 +225,14 @@ func (s *accountService) GetClaimValuesByRoleById(roleId int64) ([]*pb.ClaimValu
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return nil, err
 	}
 
 	rows, err := stmt.Query(roleId)
 
 	if err != nil {
-		s.logger.Printf("query rows failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 
 		return nil, err
 	}
@@ -255,7 +251,7 @@ func (s *accountService) GetClaimValuesByRoleById(roleId int64) ([]*pb.ClaimValu
 			&claim.Version, &claim.ClaimName, &claim.ClaimDescription)
 
 		if err != nil {
-			s.logger.Printf("rows scan failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			return nil, err
 		}
 
@@ -274,7 +270,6 @@ func (s *accountService) GetClaimValuesByRoleById(roleId int64) ([]*pb.ClaimValu
 
 // get the claim values and claims for all roles in an account.
 func (s *accountService) GetClaimValuesByAccountId(accountId int64) (map[int64][]*pb.ClaimValue, error) {
-	s.logger.Printf("GetClaimValuesByAccountId called for %d\n", accountId)
 	res := make(map[int64][]*pb.ClaimValue)
 	var err error
 
@@ -291,14 +286,14 @@ func (s *accountService) GetClaimValuesByAccountId(accountId int64) (map[int64][
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return res, err
 	}
 
 	rows, err := stmt.Query(accountId)
 
 	if err != nil {
-		s.logger.Printf("query rows failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 
 		return res, err
 	}
@@ -318,7 +313,7 @@ func (s *accountService) GetClaimValuesByAccountId(accountId int64) (map[int64][
 			&claim.Version, &claim.ClaimName, &claim.ClaimDescription)
 
 		if err != nil {
-			s.logger.Printf("rows scan failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			return res, err
 		}
 
@@ -342,7 +337,6 @@ func (s *accountService) GetClaimValuesByAccountId(accountId int64) (map[int64][
 
 // get the claim values and claims for all roles for a user.
 func (s *accountService) GetClaimValuesByUserId(userId int64) (map[int64][]*pb.ClaimValue, error) {
-	s.logger.Printf("GetClaimValuesByUserId called for %d\n", userId)
 	res := make(map[int64][]*pb.ClaimValue)
 	var err error
 
@@ -359,14 +353,14 @@ func (s *accountService) GetClaimValuesByUserId(userId int64) (map[int64][]*pb.C
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return res, err
 	}
 
 	rows, err := stmt.Query(userId)
 
 	if err != nil {
-		s.logger.Printf("query rows failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 
 		return res, err
 	}
@@ -386,7 +380,7 @@ func (s *accountService) GetClaimValuesByUserId(userId int64) (map[int64][]*pb.C
 			&claim.Version, &claim.ClaimName, &claim.ClaimDescription)
 
 		if err != nil {
-			s.logger.Printf("rows scan failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			return res, err
 		}
 
@@ -412,13 +406,12 @@ func (s *accountService) GetClaimValuesByUserId(userId int64) (map[int64][]*pb.C
 
 // get the roles associated with a user.
 func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRole, error) {
-	s.logger.Printf("GetAccountRolesByUserId called for %d\n", userId)
 	var roles []*pb.AccountRole
 	var err error
 
 	claimValMap, err := s.GetClaimValuesByUserId(userId)
 	if err != nil {
-		s.logger.Printf("unable to get claim value map for user: %v\n", err)
+		level.Error(s.logger).Log("what", "GetClaimValuesByUserId", "error", err)
 		return roles, err
 	}
 
@@ -432,7 +425,7 @@ func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRol
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		return roles, err
 	}
 
@@ -441,7 +434,7 @@ func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRol
 	rows, err := stmt.Query(userId)
 
 	if err != nil {
-		s.logger.Printf("query failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 		return roles, err
 	}
 
@@ -454,7 +447,7 @@ func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRol
 
 		err = rows.Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId, &role.RoleName)
 		if err != nil {
-			s.logger.Printf("query rows scan  failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			return roles, err
 		}
 
@@ -474,13 +467,12 @@ func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRol
 
 // get all account roles in account
 func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccountRolesRequest) (*pb.GetAccountRolesResponse, error) {
-	s.logger.Printf("GetAccountRoles called for %d\n", req.GetAccountId())
 	resp := &pb.GetAccountRolesResponse{}
 	var err error
 
 	claimValMap, err := s.GetClaimValuesByAccountId(req.GetAccountId())
 	if err != nil {
-		s.logger.Printf("unable to get claim values for account : %v\n", err)
+		level.Error(s.logger).Log("what", "GetClaimValuesByAccountId", "error", err)
 	}
 
 	sqlstring := `SELECT inbRoleId, dtmCreated, dtmModified, intVersion, inbAccountId, chvRoleName FROM tb_AccountRole
@@ -488,7 +480,7 @@ func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccount
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -498,7 +490,7 @@ func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccount
 	rows, err := stmt.Query(req.GetAccountId())
 
 	if err != nil {
-		s.logger.Printf("query failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		return resp, nil
@@ -513,7 +505,7 @@ func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccount
 
 		err = rows.Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId, &role.RoleName)
 		if err != nil {
-			s.logger.Printf("query rows scan  failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 			return resp, nil
@@ -533,7 +525,6 @@ func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccount
 
 // associate an account user with an account role
 func (s *accountService) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRequest) (*pb.AddUserToRoleResponse, error) {
-	s.logger.Printf("AddUserToRole called for user: %d , role: %d\n", req.GetUserId(), req.GetRoleId())
 	resp := &pb.AddUserToRoleResponse{}
 	var err error
 
@@ -542,7 +533,7 @@ func (s *accountService) AddUserToRole(ctx context.Context, req *pb.AddUserToRol
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -568,7 +559,7 @@ func (s *accountService) AddUserToRole(ctx context.Context, req *pb.AddUserToRol
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring1 failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -586,7 +577,7 @@ func (s *accountService) AddUserToRole(ctx context.Context, req *pb.AddUserToRol
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -595,7 +586,6 @@ func (s *accountService) AddUserToRole(ctx context.Context, req *pb.AddUserToRol
 
 // disassociate an account user from an account role
 func (s *accountService) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUserFromRoleRequest) (*pb.RemoveUserFromRoleResponse, error) {
-	s.logger.Printf("RemoveUserFromRole called for %d : %d\n", req.GetUserId(), req.GetRoleId())
 	resp := &pb.RemoveUserFromRoleResponse{}
 	var err error
 
@@ -603,7 +593,7 @@ func (s *accountService) RemoveUserFromRole(ctx context.Context, req *pb.RemoveU
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -621,7 +611,7 @@ func (s *accountService) RemoveUserFromRole(ctx context.Context, req *pb.RemoveU
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -630,7 +620,6 @@ func (s *accountService) RemoveUserFromRole(ctx context.Context, req *pb.RemoveU
 
 // associate a claim with an account role
 func (s *accountService) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRoleRequest) (*pb.AddClaimToRoleResponse, error) {
-	s.logger.Printf("AddClaimToRole called for %d : %d\n", req.GetClaimValueId(), req.GetRoleId())
 	resp := &pb.AddClaimToRoleResponse{}
 	var err error
 
@@ -639,7 +628,7 @@ func (s *accountService) AddClaimToRole(ctx context.Context, req *pb.AddClaimToR
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -665,7 +654,7 @@ func (s *accountService) AddClaimToRole(ctx context.Context, req *pb.AddClaimToR
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring1 failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -684,7 +673,7 @@ func (s *accountService) AddClaimToRole(ctx context.Context, req *pb.AddClaimToR
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -693,7 +682,6 @@ func (s *accountService) AddClaimToRole(ctx context.Context, req *pb.AddClaimToR
 
 // remove a claim from an account role
 func (s *accountService) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveClaimFromRoleRequest) (*pb.RemoveClaimFromRoleResponse, error) {
-	s.logger.Printf("RemoveClaimFromRole called for %d : %d\n", req.GetClaimValueId(), req.GetRoleId())
 	resp := &pb.RemoveClaimFromRoleResponse{}
 	var err error
 
@@ -702,7 +690,7 @@ func (s *accountService) RemoveClaimFromRole(ctx context.Context, req *pb.Remove
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -721,7 +709,7 @@ func (s *accountService) RemoveClaimFromRole(ctx context.Context, req *pb.Remove
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 

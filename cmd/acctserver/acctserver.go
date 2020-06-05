@@ -17,7 +17,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/rs/cors"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -25,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/rs/cors"
 
 	"github.com/gaterace/mservice/pkg/acctauth"
 	"github.com/gaterace/mservice/pkg/acctservice"
@@ -33,7 +35,6 @@ import (
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/grpclog"
 
 	"github.com/kylelemons/go-gypsy/yaml"
 
@@ -50,7 +51,8 @@ func main() {
 
 	config, err := yaml.ReadFile(configPath)
 	if err != nil {
-		log.Fatalf("configuration not found: " + configPath)
+		fmt.Printf("configuration not found: " + configPath)
+		os.Exit(1)
 	}
 
 	log_file, _ := config.Get("log_file")
@@ -67,23 +69,32 @@ func main() {
 	lease_minutes, _ := config.GetInt("lease_minutes")
 	cors_origin, _ := config.Get("cors_origin")
 
-	fmt.Printf("log_file: %s\n", log_file)
-	fmt.Printf("cert_file: %s\n", cert_file)
-	fmt.Printf("key_file: %s\n", key_file)
-	fmt.Printf("tls: %t\n", tls)
-	fmt.Printf("port: %d\n", port)
-	fmt.Printf("rest_port: %d\n", rest_port)
-	fmt.Printf("db_user: %s\n", db_user)
-	fmt.Printf("db_transport: %s\n", db_transport)
-	fmt.Printf("jwt_pub_file: %s\n", jwt_pub_file)
-	fmt.Printf("jwt_private_file: %s\n", jwt_private_file)
-	fmt.Printf("lease_minutes: %d\n", lease_minutes)
-	fmt.Printf("cors_origin: %s\n", cors_origin)
+	var logWriter io.Writer
 
-	logfile, _ := os.Create(log_file)
-	defer logfile.Close()
+	if log_file == "" {
+		logWriter = os.Stderr
+	} else {
+		logfile, _ := os.OpenFile(log_file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		defer logfile.Close()
+		logWriter = logfile
+	}
+	logger := log.NewLogfmtLogger(log.NewSyncWriter(logWriter))
+	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 
-	logger := log.New(logfile, "api_account ", log.LstdFlags|log.Lshortfile)
+
+
+	level.Info(logger).Log("log_file", log_file)
+	level.Info(logger).Log("cert_file", cert_file)
+	level.Info(logger).Log("key_file", key_file)
+	level.Info(logger).Log("tls", tls)
+	level.Info(logger).Log("port", port)
+	level.Info(logger).Log("rest_port", rest_port)
+	level.Info(logger).Log("db_user", db_user)
+	level.Info(logger).Log("db_transport", db_transport)
+	level.Info(logger).Log("jwt_pub_file", jwt_pub_file)
+	level.Info(logger).Log("jwt_private_file", jwt_private_file)
+	level.Info(logger).Log("lease_minutes", lease_minutes)
+	level.Info(logger).Log("cors_origin", cors_origin)
 
 	if port == 0 {
 		port = 50051
@@ -94,14 +105,16 @@ func main() {
 
 	lis, err := net.Listen("tcp", listen_port)
 	if err != nil {
-		logger.Fatalf("failed to listen: %v", err)
+		level.Error(logger).Log("what", "net.listen", "error", err)
+		os.Exit(1)
 	}
 
 	var opts []grpc.ServerOption
 	if tls {
 		creds, err := credentials.NewServerTLSFromFile(cert_file, key_file)
 		if err != nil {
-			grpclog.Fatalf("Failed to generate credentials %v", err)
+			level.Error(logger).Log("what", "Failed to generate credentials", "error", err)
+			os.Exit(1)
 		}
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
@@ -111,14 +124,15 @@ func main() {
 
 	sqlDb, err := SetupDatabaseConnections(db_user, db_pwd, db_transport)
 	if err != nil {
-		logger.Fatalf("failed to get database connection: %v", err)
+		level.Error(logger).Log("what", "SetupDatabaseConnections", "error", err)
+		os.Exit(1)
 	}
 
 	acctService.SetLogger(logger)
 	acctService.SetDatabaseConnection(sqlDb)
 	err = acctService.SetPrivateKey(jwt_private_file)
 	if err != nil {
-		logger.Printf("set private key error: %v\n", err)
+		level.Error(logger).Log("what", "SetPrivateKey", "error", err)
 	}
 
 	if lease_minutes == 0 {
@@ -136,7 +150,8 @@ func main() {
 	acctAuth.SetDatabaseConnection(sqlDb)
 	err = acctAuth.NewApiServer(s)
 	if err != nil {
-		logger.Fatalf("failed to create api server: %v", err)
+		level.Error(logger).Log("what", "NewApiServer", "error", err)
+		os.Exit(1)
 	}
 
 	var srv *http.Server
@@ -156,7 +171,7 @@ func main() {
 				AllowedHeaders: []string{"*"},
 				// Debug: true,
 			})
-            logger.Printf("using cors\n")
+			level.Info(logger).Log("msg", "using cors")
 			handler = c.Handler(r)
 		} else {
 			handler = r
@@ -171,24 +186,24 @@ func main() {
 		}
 
 		go func() {
-			logger.Println("starting http server ...")
+			level.Info(logger).Log("msg", "starting http server")
 			if tls {
 				err = srv.ListenAndServeTLS(cert_file, key_file)
 			} else {
 				err = srv.ListenAndServe()
 			}
 			if err != nil {
-				logger.Printf("ListenAndServe err: %s", err.Error())
+				level.Error(logger).Log("what", "ListenAndServe", "error", err)
 			}
 		}()
 	}
 
 	go func() {
-		logger.Println("starting grpc server ...")
+		level.Info(logger).Log("msg", "starting grpc server")
 
 		err = s.Serve(lis)
 		if err != nil {
-			logger.Printf("grpc Serve err: %s", err.Error())
+			level.Error(logger).Log("what", "Serve", "error", err)
 		}
 	}()
 
@@ -201,7 +216,7 @@ func main() {
 	<-c
 
 	s.GracefulStop()
-	logger.Println("shutting down grpc server ...")
+	level.Info(logger).Log("msg", "shutting down grpc server")
 
 	if srv != nil {
 		// Create a deadline to wait for.
@@ -213,7 +228,7 @@ func main() {
 		// until the timeout deadline.
 		srv.Shutdown(ctx)
 
-		logger.Println("shutting down http server ...")
+		level.Info(logger).Log("msg", "shutting down http server")
 	}
 
 	os.Exit(0)
@@ -223,7 +238,7 @@ func main() {
 func SetupDatabaseConnections(db_user string, db_pwd string, db_transport string) (*sql.DB, error) {
 	var sqlDb *sql.DB
 	endpoint := db_user + ":" + db_pwd + "@" + db_transport + "/mservice"
-	fmt.Printf("mysql endpoint is %s\n", endpoint)
+
 	var err error
 	sqlDb, err = sql.Open("mysql", endpoint)
 	if err == nil {
@@ -232,12 +247,6 @@ func SetupDatabaseConnections(db_user string, db_pwd string, db_transport string
 			sqlDb = nil
 		}
 
-	}
-
-	if err == nil {
-		fmt.Println("database connection established")
-	} else {
-		fmt.Printf("unable to establish database connection %v\n", err)
 	}
 
 	return sqlDb, err

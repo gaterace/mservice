@@ -16,6 +16,7 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
 
@@ -26,7 +27,6 @@ import (
 
 // Create a new account.
 func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccountRequest) (*pb.CreateAccountResponse, error) {
-	s.logger.Printf("CreateAccount called for %s\n", req.GetAccountName())
 	resp := &pb.CreateAccountResponse{}
 	var err error
 
@@ -40,7 +40,7 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -55,9 +55,9 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 	if err == nil {
 		accountId, err := res.LastInsertId()
 		if err != nil {
-			s.logger.Printf("LastInsertId err: %v\n", err)
+			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
 		} else {
-			s.logger.Printf("accountId %d", accountId)
+			level.Debug(s.logger).Log("accountId", accountId)
 		}
 
 		resp.AccountId = accountId
@@ -65,7 +65,7 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -74,7 +74,6 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 
 // update an existing account
 func (s *accountService) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRequest) (*pb.UpdateAccountResponse, error) {
-	s.logger.Printf("UpdateAccount called for %s\n", req.GetAccountName())
 	resp := &pb.UpdateAccountResponse{}
 	var err error
 
@@ -84,7 +83,7 @@ func (s *accountService) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -107,7 +106,7 @@ func (s *accountService) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -116,7 +115,6 @@ func (s *accountService) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 
 // delete an existing account
 func (s *accountService) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRequest) (*pb.DeleteAccountResponse, error) {
-	s.logger.Printf("DeleteAccount called for %d\n", req.GetAccountId())
 	resp := &pb.DeleteAccountResponse{}
 	var err error
 
@@ -125,7 +123,7 @@ func (s *accountService) DeleteAccount(ctx context.Context, req *pb.DeleteAccoun
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -146,7 +144,7 @@ func (s *accountService) DeleteAccount(ctx context.Context, req *pb.DeleteAccoun
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -155,7 +153,6 @@ func (s *accountService) DeleteAccount(ctx context.Context, req *pb.DeleteAccoun
 
 // get an account by account id
 func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountByIdRequest) (*pb.GetAccountByIdResponse, error) {
-	s.logger.Printf("GetAccountById called for %d\n", req.GetAccountId())
 	resp := &pb.GetAccountByIdResponse{}
 
 	var sqlstring string = `SELECT inbAccountId, dtmCreated, dtmModified, intVersion, chvAccountName, chvAccountLongName,
@@ -168,7 +165,7 @@ func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountB
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -191,7 +188,7 @@ func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountB
 		resp.ErrorMessage = "not found"
 		err = nil
 	} else {
-		s.logger.Printf("queryRow failed: %v\n", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		err = nil
@@ -202,7 +199,6 @@ func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountB
 
 // get an account by account name
 func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccountByNameRequest) (*pb.GetAccountByNameResponse, error) {
-	s.logger.Printf("GetAccountByName called for %s\n", req.GetAccountName())
 	resp := &pb.GetAccountByNameResponse{}
 
 	var sqlstring string = `SELECT inbAccountId, dtmCreated, dtmModified, intVersion, chvAccountName, chvAccountLongName,
@@ -215,7 +211,7 @@ func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccoun
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -238,7 +234,7 @@ func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccoun
 		resp.ErrorMessage = "not found"
 		err = nil
 	} else {
-		s.logger.Printf("queryRow failed: %v\n", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		err = nil
@@ -249,13 +245,12 @@ func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccoun
 
 // get all account names
 func (s *accountService) GetAccountNames(ctx context.Context, req *pb.GetAccountNamesRequest) (*pb.GetAccountNamesResponse, error) {
-	s.logger.Printf("GetAccountNames called\n")
 	resp := &pb.GetAccountNamesResponse{}
 
 	var sqlstring string = `SELECT chvAccountName FROM tb_Account WHERE bitIsDeleted = 0`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -266,7 +261,7 @@ func (s *accountService) GetAccountNames(ctx context.Context, req *pb.GetAccount
 	rows, err := stmt.Query()
 
 	if err != nil {
-		s.logger.Printf("query failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		return resp, nil
@@ -277,7 +272,7 @@ func (s *accountService) GetAccountNames(ctx context.Context, req *pb.GetAccount
 		var accountName string
 		err = rows.Scan(&accountName)
 		if err != nil {
-			s.logger.Printf("query rows scan  failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 			return resp, nil

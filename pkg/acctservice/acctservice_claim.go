@@ -16,6 +16,7 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
@@ -25,7 +26,6 @@ import (
 
 // create a claim name
 func (s *accountService) CreateClaimName(ctx context.Context, req *pb.CreateClaimNameRequest) (*pb.CreateClaimNameResponse, error) {
-	s.logger.Printf("CreateClaimNameRequest called for %s\n", req.GetClaimName())
 	resp := &pb.CreateClaimNameResponse{}
 	var err error
 
@@ -35,7 +35,7 @@ func (s *accountService) CreateClaimName(ctx context.Context, req *pb.CreateClai
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -47,9 +47,9 @@ func (s *accountService) CreateClaimName(ctx context.Context, req *pb.CreateClai
 	if err == nil {
 		claimNameId, err := res.LastInsertId()
 		if err != nil {
-			s.logger.Printf("LastInsertId err: %v\n", err)
+			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
 		} else {
-			s.logger.Printf("claimNameId %d", claimNameId)
+			level.Debug(s.logger).Log("claimNameId", claimNameId)
 		}
 
 		resp.ClaimNameId = claimNameId
@@ -57,7 +57,7 @@ func (s *accountService) CreateClaimName(ctx context.Context, req *pb.CreateClai
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -66,7 +66,6 @@ func (s *accountService) CreateClaimName(ctx context.Context, req *pb.CreateClai
 
 // update an existing claim name
 func (s *accountService) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNameRequest) (*pb.UpdateClaimNameResponse, error) {
-	s.logger.Printf("UpdateClaimName called for %d\n", req.GetClaimNameId())
 	resp := &pb.UpdateClaimNameResponse{}
 	var err error
 
@@ -75,7 +74,7 @@ func (s *accountService) UpdateClaimName(ctx context.Context, req *pb.UpdateClai
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -96,7 +95,7 @@ func (s *accountService) UpdateClaimName(ctx context.Context, req *pb.UpdateClai
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -105,7 +104,6 @@ func (s *accountService) UpdateClaimName(ctx context.Context, req *pb.UpdateClai
 
 // delete an existing claim name
 func (s *accountService) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNameRequest) (*pb.DeleteClaimNameResponse, error) {
-	s.logger.Printf("DeleteClaimName called for %d\n", req.GetClaimNameId())
 	resp := &pb.DeleteClaimNameResponse{}
 	var err error
 
@@ -114,7 +112,7 @@ func (s *accountService) DeleteClaimName(ctx context.Context, req *pb.DeleteClai
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -135,7 +133,7 @@ func (s *accountService) DeleteClaimName(ctx context.Context, req *pb.DeleteClai
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -144,7 +142,6 @@ func (s *accountService) DeleteClaimName(ctx context.Context, req *pb.DeleteClai
 
 // get all claim names
 func (s *accountService) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRequest) (*pb.GetClaimNamesResponse, error) {
-	s.logger.Println("GetClaimNames called")
 	resp := &pb.GetClaimNamesResponse{}
 	var err error
 
@@ -153,7 +150,7 @@ func (s *accountService) GetClaimNames(ctx context.Context, req *pb.GetClaimName
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -164,7 +161,7 @@ func (s *accountService) GetClaimNames(ctx context.Context, req *pb.GetClaimName
 	rows, err := stmt.Query()
 
 	if err != nil {
-		s.logger.Printf("query failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		return resp, nil
@@ -177,7 +174,7 @@ func (s *accountService) GetClaimNames(ctx context.Context, req *pb.GetClaimName
 		var modified string
 		err = rows.Scan(&claim.ClaimNameId, &created, &modified, &claim.Version, &claim.ClaimName, &claim.ClaimDescription)
 		if err != nil {
-			s.logger.Printf("query rows scan  failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 			return resp, nil
@@ -193,14 +190,13 @@ func (s *accountService) GetClaimNames(ctx context.Context, req *pb.GetClaimName
 
 // create claim value
 func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateClaimValueRequest) (*pb.CreateClaimValueResponse, error) {
-	s.logger.Printf("CreateClaimValue called for %s\n", req.GetClaimVal())
 	resp := &pb.CreateClaimValueResponse{}
 	var err error
 
 	sqlstring1 := `SELECT inbClaimNameId FROM tb_Claim WHERE inbClaimNameId = ? AND bitIsDeleted = 0`
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring1 failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -215,7 +211,7 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 	if err != nil {
 		resp.ErrorCode = 502
 		resp.ErrorMessage = "unable to match existing claim name"
-		s.logger.Printf("unable to match existng claim name: %s\n", err.Error())
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		return resp, nil
 	}
 
@@ -224,7 +220,7 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -237,9 +233,9 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 	if err == nil {
 		claimValueId, err := res.LastInsertId()
 		if err != nil {
-			s.logger.Printf("LastInsertId err: %v\n", err)
+			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
 		} else {
-			s.logger.Printf("claimValueId %d", claimValueId)
+			level.Debug(s.logger).Log("claimValueId", claimValueId)
 		}
 
 		resp.Version = 1
@@ -248,7 +244,7 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -257,7 +253,6 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 
 // update existing claim value
 func (s *accountService) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimValueRequest) (*pb.UpdateClaimValueResponse, error) {
-	s.logger.Printf("UpdateClaimValue called for %d\n", req.GetClaimValueId())
 	resp := &pb.UpdateClaimValueResponse{}
 	var err error
 
@@ -266,7 +261,7 @@ func (s *accountService) UpdateClaimValue(ctx context.Context, req *pb.UpdateCla
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -287,7 +282,7 @@ func (s *accountService) UpdateClaimValue(ctx context.Context, req *pb.UpdateCla
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -296,7 +291,6 @@ func (s *accountService) UpdateClaimValue(ctx context.Context, req *pb.UpdateCla
 
 // delete existing claim value
 func (s *accountService) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimValueRequest) (*pb.DeleteClaimValueResponse, error) {
-	s.logger.Printf("DeleteClaimValue called for %d\n", req.GetClaimValueId())
 	resp := &pb.DeleteClaimValueResponse{}
 	var err error
 
@@ -305,7 +299,7 @@ func (s *accountService) DeleteClaimValue(ctx context.Context, req *pb.DeleteCla
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -325,7 +319,7 @@ func (s *accountService) DeleteClaimValue(ctx context.Context, req *pb.DeleteCla
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		s.logger.Printf("err: %v\n", err)
+		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
 
@@ -334,7 +328,6 @@ func (s *accountService) DeleteClaimValue(ctx context.Context, req *pb.DeleteCla
 
 // get claim value by id
 func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaimValueByIdRequest) (*pb.GetClaimValueByIdResponse, error) {
-	s.logger.Printf("GetClaimValueById called for %d\n", req.GetClaimValueId())
 	resp := &pb.GetClaimValueByIdResponse{}
 	var err error
 
@@ -349,7 +342,7 @@ func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaim
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -369,7 +362,7 @@ func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaim
 			resp.ErrorCode = 404
 			resp.ErrorMessage = "not found"
 		} else {
-			s.logger.Printf("queryRow failed: %v\n", err)
+			level.Error(s.logger).Log("what", "QueryRow", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 		}
@@ -385,7 +378,7 @@ func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaim
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring1 failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -401,7 +394,7 @@ func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaim
 			resp.ErrorCode = 404
 			resp.ErrorMessage = "not found"
 		} else {
-			s.logger.Printf("queryRow failed: %v\n", err)
+			level.Error(s.logger).Log("what", "QueryRow", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 		}
@@ -420,7 +413,6 @@ func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaim
 
 // get all claim values for name id
 func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.GetClaimValuesByNameIdRequest) (*pb.GetClaimValuesByNameIdResponse, error) {
-	s.logger.Printf("GetClaimValuesByNameId called for %d\n", req.GetClaimNameId())
 	resp := &pb.GetClaimValuesByNameIdResponse{}
 	var err error
 
@@ -429,7 +421,7 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring1 failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -448,7 +440,7 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 			resp.ErrorCode = 404
 			resp.ErrorMessage = "not found"
 		} else {
-			s.logger.Printf("queryRow failed: %v\n", err)
+			level.Error(s.logger).Log("what", "QueryRow", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 		}
@@ -463,7 +455,7 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -473,7 +465,7 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 	rows, err := stmt.Query(req.GetClaimNameId())
 
 	if err != nil {
-		s.logger.Printf("queryRow failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		return resp, nil
@@ -487,7 +479,7 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 			&claimVal.ClaimVal, &claimVal.ClaimValueDescription)
 
 		if err != nil {
-			s.logger.Printf("query rows scan  failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 			return resp, nil
@@ -506,7 +498,6 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 
 // get all claim values for all claim names
 func (s *accountService) GetClaimValues(ctx context.Context, req *pb.GetClaimValuesRequest) (*pb.GetClaimValuesResponse, error) {
-	s.logger.Printf("GetClaimValues called\n")
 	resp := &pb.GetClaimValuesResponse{}
 	var err error
 
@@ -515,7 +506,7 @@ func (s *accountService) GetClaimValues(ctx context.Context, req *pb.GetClaimVal
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
-		s.logger.Printf("db.Prepare sqlstring1 failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = "db.Prepare failed"
 		return resp, nil
@@ -526,7 +517,7 @@ func (s *accountService) GetClaimValues(ctx context.Context, req *pb.GetClaimVal
 	rows, err := stmt.Query()
 
 	if err != nil {
-		s.logger.Printf("query failed: %v\n", err)
+		level.Error(s.logger).Log("what", "Query", "error", err)
 		resp.ErrorCode = 500
 		resp.ErrorMessage = err.Error()
 		return resp, nil
@@ -543,7 +534,7 @@ func (s *accountService) GetClaimValues(ctx context.Context, req *pb.GetClaimVal
 			&claimVal.ClaimVal, &claimVal.ClaimValueDescription)
 
 		if err != nil {
-			s.logger.Printf("query rows scan  failed: %v\n", err)
+			level.Error(s.logger).Log("what", "Scan", "error", err)
 			resp.ErrorCode = 500
 			resp.ErrorMessage = err.Error()
 			return resp, nil
