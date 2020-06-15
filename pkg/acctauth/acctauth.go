@@ -118,11 +118,12 @@ func (s *AccountAuth) GetJwtFromContext(ctx context.Context) (*map[string]interf
 	})
 
 	if err != nil {
+		level.Debug(s.logger).Log("jwt_error", err)
 		return nil, err
 	}
 
 	if !token.Valid {
-		return nil, fmt.Errorf("invalid json web token")
+		return nil, fmt.Errorf("expired json web token")
 	}
 
 	claims := map[string]interface{}(token.Claims.(jwt.MapClaims))
@@ -182,6 +183,13 @@ func (s *AccountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRe
 		if acctmgt == "admin" {
 			resp, err =  s.acctService.CreateAccount(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -205,6 +213,13 @@ func (s *AccountAuth) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRe
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == req.GetAccountName())) {
 			resp, err = s.acctService.UpdateAccount(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -228,6 +243,13 @@ func (s *AccountAuth) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRe
 		if acctmgt == "admin" {
 			resp, err = s.acctService.DeleteAccount(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -254,6 +276,13 @@ func (s *AccountAuth) GetAccountById(ctx context.Context, req *pb.GetAccountById
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) || ((acctmgt == "acctro") && (aid == accountId)) {
 			resp, err = s.acctService.GetAccountById(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -280,6 +309,13 @@ func (s *AccountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountBy
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == reqAccount)) || ((acctmgt == "acctro") && (actname == reqAccount)) {
 			resp, err = s.acctService.GetAccountByName(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -308,6 +344,13 @@ func (s *AccountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNam
 		if acctmgt == "admin" {
 			resp, err = s.acctService.GetAccountNames(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -333,6 +376,13 @@ func (s *AccountAuth) CreateAccountUser(ctx context.Context, req *pb.CreateAccou
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
 			resp, err = s.acctService.CreateAccountUser(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -374,6 +424,13 @@ func (s *AccountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccou
 		if ok {
 			resp, err = s.acctService.UpdateAccountUser(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -415,6 +472,13 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
 		if ok {
 			resp, err = s.acctService.UpdateAccountUserPassword(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -456,6 +520,13 @@ func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccou
 		if ok {
 			resp, err =  s.acctService.DeleteAccountUser(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -499,6 +570,13 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 				resp.AccountUser = nil
 			}
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -552,6 +630,13 @@ func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAcco
 				resp.AccountUser = nil
 			}
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -578,6 +663,13 @@ func (s *AccountAuth) GetAccountUsers(ctx context.Context, req *pb.GetAccountUse
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == reqAccount)) || ((acctmgt == "acctro") && (actname == reqAccount)) {
 			resp, err = s.acctService.GetAccountUsers(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -601,6 +693,13 @@ func (s *AccountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNa
 		if acctmgt == "admin" {
 			resp, err =  s.acctService.CreateClaimName(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -624,6 +723,13 @@ func (s *AccountAuth) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNa
 		if acctmgt == "admin" {
 			resp, err = s.acctService.UpdateClaimName(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -647,6 +753,13 @@ func (s *AccountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNa
 		if acctmgt == "admin" {
 			resp, err = s.acctService.DeleteClaimName(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -670,6 +783,13 @@ func (s *AccountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRe
 		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimNames(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -692,6 +812,13 @@ func (s *AccountAuth) CreateClaimValue(ctx context.Context, req *pb.CreateClaimV
 		if acctmgt == "admin" {
 			resp, err = s.acctService.CreateClaimValue(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -715,6 +842,13 @@ func (s *AccountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimV
 		if acctmgt == "admin" {
 			resp, err =  s.acctService.UpdateClaimValue(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -738,6 +872,13 @@ func (s *AccountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimV
 		if acctmgt == "admin" {
 			resp, err =  s.acctService.DeleteClaimValue(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -761,6 +902,13 @@ func (s *AccountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimVal
 		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimValueById(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -786,6 +934,13 @@ func (s *AccountAuth) GetClaimValuesByNameId(ctx context.Context,
 		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimValuesByNameId(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -811,6 +966,13 @@ func (s *AccountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValues
 			resp, err = s.acctService.GetClaimValues(ctx, req)
 		}
 
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -835,6 +997,13 @@ func (s *AccountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccou
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
 			resp, err =  s.acctService.CreateAccountRole(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -871,6 +1040,13 @@ func (s *AccountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccou
 			resp, err = s.acctService.UpdateAccountRole(ctx, req)
 		}
 
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -905,6 +1081,13 @@ func (s *AccountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccou
 		if ok {
 			resp, err = s.acctService.DeleteAccountRole(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -939,7 +1122,13 @@ func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccount
 		if ok {
 			resp, err = s.acctService.GetAccountRoleById(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
 
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -966,6 +1155,13 @@ func (s *AccountAuth) GetAccountRoles(ctx context.Context, req *pb.GetAccountRol
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
 			resp, err = s.acctService.GetAccountRoles(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -1007,6 +1203,13 @@ func (s *AccountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRe
 		if ok {
 			resp, err = s.acctService.AddUserToRole(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -1043,6 +1246,13 @@ func (s *AccountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUser
 		if ok {
 			resp, err = s.acctService.RemoveUserFromRole(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -1086,6 +1296,13 @@ func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRole
 		if ok {
 			resp, err = s.acctService.AddClaimToRole(ctx, req)
 		}
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
@@ -1122,6 +1339,13 @@ func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveCla
 			resp, err = s.acctService.RemoveClaimFromRole(ctx, req)
 		}
 
+	} else {
+		if err.Error() == "Token is expired" {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = "token is expired"
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
