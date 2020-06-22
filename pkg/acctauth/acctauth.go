@@ -18,9 +18,9 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"io/ioutil"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"io/ioutil"
 	"time"
 
 	"database/sql"
@@ -32,6 +32,11 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
+)
+
+const (
+	tokenExpiredMatch = "Token is expired"
+	tokenExpiredMessage = "token is expired"
 )
 
 // Message receiver for account authorization.
@@ -184,9 +189,9 @@ func (s *AccountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRe
 			resp, err =  s.acctService.CreateAccount(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -214,9 +219,9 @@ func (s *AccountAuth) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRe
 			resp, err = s.acctService.UpdateAccount(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -244,9 +249,9 @@ func (s *AccountAuth) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRe
 			resp, err = s.acctService.DeleteAccount(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -277,9 +282,9 @@ func (s *AccountAuth) GetAccountById(ctx context.Context, req *pb.GetAccountById
 			resp, err = s.acctService.GetAccountById(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -310,9 +315,9 @@ func (s *AccountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountBy
 			resp, err = s.acctService.GetAccountByName(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -345,9 +350,9 @@ func (s *AccountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNam
 			resp, err = s.acctService.GetAccountNames(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -377,9 +382,9 @@ func (s *AccountAuth) CreateAccountUser(ctx context.Context, req *pb.CreateAccou
 			resp, err = s.acctService.CreateAccountUser(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -425,9 +430,9 @@ func (s *AccountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccou
 			resp, err = s.acctService.UpdateAccountUser(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -473,9 +478,9 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
 			resp, err = s.acctService.UpdateAccountUserPassword(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -521,9 +526,9 @@ func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccou
 			resp, err =  s.acctService.DeleteAccountUser(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -571,9 +576,9 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 			}
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -631,9 +636,9 @@ func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAcco
 			}
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -664,9 +669,9 @@ func (s *AccountAuth) GetAccountUsers(ctx context.Context, req *pb.GetAccountUse
 			resp, err = s.acctService.GetAccountUsers(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -694,9 +699,9 @@ func (s *AccountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNa
 			resp, err =  s.acctService.CreateClaimName(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -724,9 +729,9 @@ func (s *AccountAuth) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNa
 			resp, err = s.acctService.UpdateClaimName(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -754,9 +759,9 @@ func (s *AccountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNa
 			resp, err = s.acctService.DeleteClaimName(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -784,9 +789,9 @@ func (s *AccountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRe
 			resp, err = s.acctService.GetClaimNames(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -813,9 +818,9 @@ func (s *AccountAuth) CreateClaimValue(ctx context.Context, req *pb.CreateClaimV
 			resp, err = s.acctService.CreateClaimValue(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -843,9 +848,9 @@ func (s *AccountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimV
 			resp, err =  s.acctService.UpdateClaimValue(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -873,9 +878,9 @@ func (s *AccountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimV
 			resp, err =  s.acctService.DeleteClaimValue(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -903,9 +908,9 @@ func (s *AccountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimVal
 			resp, err = s.acctService.GetClaimValueById(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -935,9 +940,9 @@ func (s *AccountAuth) GetClaimValuesByNameId(ctx context.Context,
 			resp, err = s.acctService.GetClaimValuesByNameId(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -967,9 +972,9 @@ func (s *AccountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValues
 		}
 
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -998,9 +1003,9 @@ func (s *AccountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccou
 			resp, err =  s.acctService.CreateAccountRole(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1041,9 +1046,9 @@ func (s *AccountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccou
 		}
 
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1082,9 +1087,9 @@ func (s *AccountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccou
 			resp, err = s.acctService.DeleteAccountRole(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1123,9 +1128,9 @@ func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccount
 			resp, err = s.acctService.GetAccountRoleById(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1156,9 +1161,9 @@ func (s *AccountAuth) GetAccountRoles(ctx context.Context, req *pb.GetAccountRol
 			resp, err = s.acctService.GetAccountRoles(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1204,9 +1209,9 @@ func (s *AccountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRe
 			resp, err = s.acctService.AddUserToRole(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1247,9 +1252,9 @@ func (s *AccountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUser
 			resp, err = s.acctService.RemoveUserFromRole(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1297,9 +1302,9 @@ func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRole
 			resp, err = s.acctService.AddClaimToRole(ctx, req)
 		}
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
@@ -1340,9 +1345,9 @@ func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveCla
 		}
 
 	} else {
-		if err.Error() == "Token is expired" {
+		if err.Error() == tokenExpiredMatch {
 			resp.ErrorCode = 498
-			resp.ErrorMessage = "token is expired"
+			resp.ErrorMessage = tokenExpiredMessage
 		}
 
 		err = nil
