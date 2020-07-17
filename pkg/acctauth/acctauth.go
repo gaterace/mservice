@@ -18,10 +18,11 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"io/ioutil"
 	"time"
+
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 
 	"database/sql"
 
@@ -35,7 +36,7 @@ import (
 )
 
 const (
-	tokenExpiredMatch = "Token is expired"
+	tokenExpiredMatch   = "Token is expired"
 	tokenExpiredMessage = "token is expired"
 )
 
@@ -109,7 +110,7 @@ func (s *AccountAuth) GetJwtFromContext(ctx context.Context) (*map[string]interf
 
 	tokenString := tokens[0]
 
-	level.Debug(s.logger).Log("tokenString", tokenString)
+	// level.Debug(s.logger).Log("tokenString", tokenString)
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
@@ -186,7 +187,7 @@ func (s *AccountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRe
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		if acctmgt == "admin" {
-			resp, err =  s.acctService.CreateAccount(ctx, req)
+			resp, err = s.acctService.CreateAccount(ctx, req)
 		}
 	} else {
 		if err.Error() == tokenExpiredMatch {
@@ -362,7 +363,6 @@ func (s *AccountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNam
 	level.Info(s.logger).Log("endpoint", "GetAccountNames",
 		"errcode", resp.GetErrorCode(), "duration", duration)
 
-
 	return resp, err
 }
 
@@ -491,7 +491,6 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
 		"userid", req.GetUserId(),
 		"errcode", resp.GetErrorCode(), "duration", duration)
 
-
 	return resp, err
 }
 
@@ -523,7 +522,7 @@ func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccou
 		}
 
 		if ok {
-			resp, err =  s.acctService.DeleteAccountUser(ctx, req)
+			resp, err = s.acctService.DeleteAccountUser(ctx, req)
 		}
 	} else {
 		if err.Error() == tokenExpiredMatch {
@@ -599,7 +598,6 @@ func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAcco
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
@@ -649,7 +647,6 @@ func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAcco
 		"email", req.GetEmail(),
 		"errcode", resp.GetErrorCode(), "duration", duration)
 
-
 	return resp, err
 }
 
@@ -696,7 +693,7 @@ func (s *AccountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNa
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		if acctmgt == "admin" {
-			resp, err =  s.acctService.CreateClaimName(ctx, req)
+			resp, err = s.acctService.CreateClaimName(ctx, req)
 		}
 	} else {
 		if err.Error() == tokenExpiredMatch {
@@ -845,7 +842,7 @@ func (s *AccountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimV
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		if acctmgt == "admin" {
-			resp, err =  s.acctService.UpdateClaimValue(ctx, req)
+			resp, err = s.acctService.UpdateClaimValue(ctx, req)
 		}
 	} else {
 		if err.Error() == tokenExpiredMatch {
@@ -875,7 +872,7 @@ func (s *AccountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimV
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		if acctmgt == "admin" {
-			resp, err =  s.acctService.DeleteClaimValue(ctx, req)
+			resp, err = s.acctService.DeleteClaimValue(ctx, req)
 		}
 	} else {
 		if err.Error() == tokenExpiredMatch {
@@ -921,7 +918,6 @@ func (s *AccountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimVal
 		"claimvalid", req.GetClaimValueId(),
 		"errcode", resp.GetErrorCode(), "duration", duration)
 
-
 	return resp, err
 }
 
@@ -952,7 +948,6 @@ func (s *AccountAuth) GetClaimValuesByNameId(ctx context.Context,
 	level.Info(s.logger).Log("endpoint", "GetClaimValuesByNameId",
 		"claimid", req.GetClaimNameId(),
 		"errcode", resp.GetErrorCode(), "duration", duration)
-
 
 	return resp, err
 }
@@ -1000,7 +995,7 @@ func (s *AccountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccou
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
-			resp, err =  s.acctService.CreateAccountRole(ctx, req)
+			resp, err = s.acctService.CreateAccountRole(ctx, req)
 		}
 	} else {
 		if err.Error() == tokenExpiredMatch {
@@ -1141,7 +1136,6 @@ func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccount
 		"roleid", req.GetRoleId(),
 		"errcode", resp.GetErrorCode(), "duration", duration)
 
-
 	return resp, err
 }
 
@@ -1222,7 +1216,6 @@ func (s *AccountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRe
 		"roleid", req.GetRoleId(),
 		"userid", req.GetUserId(),
 		"errcode", resp.GetErrorCode(), "duration", duration)
-
 
 	return resp, err
 }

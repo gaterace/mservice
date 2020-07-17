@@ -17,7 +17,10 @@
 
 *~
 
+mservice.sublime*
+
 cmd/acctclient/acctclient
+cmd/acctclient/*.config
 cmd/acctserver/acctserver
 cmd/acctserver/acctserver_arm
 cmd/acctserver/conf.yaml
@@ -27,4 +30,6 @@ cmd/acctservermux/log.txt
 cmd/acctservermux/conf.yaml
 cmd/acctclientrest/acctclientrest
 cmd/acctclientrest/conf.yaml
+cmd/acctclientrest/*.config
+
 
