@@ -83,6 +83,12 @@ func (mh *muxHandler) AddRoutes() {
 	mh.rtr.HandleFunc("/api/role/claim/{role:[0-9]+}/{claim:[0-9]+}", mh.AddClaimToRoleHandler).Methods("POST")
 	mh.rtr.HandleFunc("/api/role/claim/{role:[0-9]+}/{claim:[0-9]+}", mh.RemoveClaimFromRoleHandler).Methods("DELETE")
 
+	mh.rtr.HandleFunc("/api/schema", mh.CreateEntitySchemaHandler).Methods("POST")
+	mh.rtr.HandleFunc("/api/schema/{id:[0-9]+}", mh.UpdateEntitySchemaHandler).Methods("PUT")
+	mh.rtr.HandleFunc("/api/schema/{id:[0-9]+}/{name}/{version:[0-9]+}", mh.DeleteEntitySchemaHandler).Methods("DELETE")
+	mh.rtr.HandleFunc("/api/schema/{id:[0-9]+}/{name}", mh.EntitySchemaHandler).Methods("GET")
+	mh.rtr.HandleFunc("/api/schemas/{id:[0-9]+}", mh.EntitySchemasHandler).Methods("GET")
+
 	mh.rtr.HandleFunc("/api/server/version", mh.ServerVersionHandler).Methods("GET")
 }
 
@@ -560,6 +566,8 @@ func (mh *muxHandler) CreateClaimValueHandler(w http.ResponseWriter, r *http.Req
 	return
 }
 
+
+
 // Handle UpdateClaimValue. Expects a PUT request and UpdateClaimValueRequest body.
 func (mh *muxHandler) UpdateClaimValueHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -893,6 +901,136 @@ func (mh *muxHandler) RemoveClaimFromRoleHandler(w http.ResponseWriter, r *http.
 
 	return
 }
+
+// Handle CreateEntitySchema. Expects a POST request and CreateEntitySchemaRequest body.
+func (mh *muxHandler) CreateEntitySchemaHandler(w http.ResponseWriter, r *http.Request) {
+	req := pb.CreateEntitySchemaRequest{}
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(501)
+		return
+	}
+
+	err = json.Unmarshal(buf, &req)
+	if err != nil {
+		w.WriteHeader(502)
+		return
+	}
+
+	ctx := getTokenContext(r)
+	resp, err := mh.auth.CreateEntitySchema(ctx, &req)
+
+	if err == nil {
+		writeResponse(resp, err, int(resp.GetErrorCode()), w)
+		return
+	}
+
+	w.WriteHeader(503)
+
+	return
+
+}
+
+// Handle UpdateEntitySchema. Expects a PUT request and CreateEntitySchemaRequest body.
+func (mh *muxHandler) UpdateEntitySchemaHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	accountId, _ := strconv.ParseInt(vars["id"], 10, 64)
+	req := pb.UpdateEntitySchemaRequest{}
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(501)
+		return
+	}
+
+	err = json.Unmarshal(buf, &req)
+	if err != nil {
+		w.WriteHeader(502)
+		return
+	}
+
+	req.AccountId = accountId
+
+	ctx := getTokenContext(r)
+	resp, err := mh.auth.UpdateEntitySchema(ctx, &req)
+
+	if err == nil {
+		writeResponse(resp, err, int(resp.GetErrorCode()), w)
+		return
+	}
+
+	w.WriteHeader(503)
+
+	return
+
+}
+
+// Handle DeleteEntitySchema. Expects a DELETE request and nil body.
+func (mh *muxHandler) DeleteEntitySchemaHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	accountId, _ := strconv.ParseInt(vars["id"], 10, 64)
+	entityName, _ := vars["name"]
+	version, _ := strconv.ParseInt(vars["version"], 10, 32)
+	req := pb.DeleteEntitySchemaRequest{}
+
+	req.AccountId = accountId
+	req.EntityName = entityName
+	req.Version = int32(version)
+
+	ctx := getTokenContext(r)
+	resp, err := mh.auth.DeleteEntitySchema(ctx, &req)
+
+	if err == nil {
+		writeResponse(resp, err, int(resp.GetErrorCode()), w)
+		return
+	}
+
+	w.WriteHeader(503)
+
+	return
+
+}
+
+
+// Handle GetEntitySchema. Expects a GET request and nil  body.
+func (mh *muxHandler) EntitySchemaHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	accountId, _ := strconv.ParseInt(vars["id"], 10, 64)
+	entityName:= vars["name"]
+	req := pb.GetEntitySchemaRequest{}
+	req.AccountId = accountId
+	req.EntityName = entityName
+	ctx := getTokenContext(r)
+	resp, err := mh.auth.GetEntitySchema(ctx, &req)
+	if err == nil {
+		writeResponse(resp, err, int(resp.GetErrorCode()), w)
+		return
+	}
+
+	w.WriteHeader(503)
+
+	return
+
+}
+
+// Handle GetEntitySchemas. Expects a GET request and nil  body.
+func (mh *muxHandler) EntitySchemasHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	accountId, _ := strconv.ParseInt(vars["id"], 10, 64)
+	req := pb.GetEntitySchemasRequest{}
+	req.AccountId = accountId
+	ctx := getTokenContext(r)
+	resp, err := mh.auth.GetEntitySchemas(ctx, &req)
+	if err == nil {
+		writeResponse(resp, err, int(resp.GetErrorCode()), w)
+		return
+	}
+
+	w.WriteHeader(503)
+
+	return
+
+}
+
 
 // Handle GetServerVersion. Expects a GET request and nil body. Does not require valid JWT.
 func (mh *muxHandler) ServerVersionHandler(w http.ResponseWriter, r *http.Request) {

@@ -50,6 +50,7 @@ var state string
 var postal_code string
 var country_code string
 var phone string
+var json_data string
 var version int
 var account_id int64
 var user_full_name string
@@ -64,6 +65,7 @@ var claim_value_description string
 var claim_value_id int64
 var role_name string
 var role_id int64
+var entity_name string
 
 func init() {
 	flag.StringVar(&account_name, "a", "", "name for account")
@@ -80,6 +82,7 @@ func init() {
 	flag.StringVar(&postal_code, "postal_code", "", "account address postal or zip code")
 	flag.StringVar(&country_code, "country_code", "us", "account address country code")
 	flag.StringVar(&phone, "phone", "", "account phone number")
+	flag.StringVar(&json_data, "j", "", "json extension data")
 	flag.Int64Var(&account_id, "account_id", 0, "unique identifier for an MService account")
 
 	flag.IntVar(&version, "version", 0, "existing object version")
@@ -99,6 +102,7 @@ func init() {
 	flag.StringVar(&role_name, "role_name", "", "descriptive name for role")
 	flag.Int64Var(&role_id, "role_id", 0, "unique identifier for an MService account role")
 
+	flag.StringVar(&entity_name, "entity_name", "", "name of entity to be extended")
 
 }
 
@@ -190,6 +194,12 @@ func main() {
 		fmt.Printf("    %s remove_user_from_role --user_id <user_id> --role_id <role_id>\n", prog)
 		fmt.Printf("    %s add_claim_to_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
 		fmt.Printf("    %s remove_claim_from_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
+
+		fmt.Printf("    %s create_entity_schema --account_id <account_id> --entity_name <entity_name> -j <json_schema> \n", prog)
+		fmt.Printf("    %s update_entity_schema --account_id <account_id> --entity_name <entity_name> --version <version>  -j <json_schema> \n", prog)
+		fmt.Printf("    %s delete_entity_schema --account_id <account_id> --entity_name <entity_name> --version <version>\n", prog)
+		fmt.Printf("    %s get_entity_schema --account_id <account_id> --entity_name <entity_name>\n", prog)
+		fmt.Printf("    %s get_entity_schemas --account_id <account_id>\n", prog)
 
 		fmt.Printf("    %s get_server_version \n", prog)
 
@@ -562,6 +572,64 @@ func main() {
 			fmt.Println("role_id parameter missing")
 			validParams = false
 		}
+	case "create_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+		if json_data == "" {
+			fmt.Println("json_schema parameter missing")
+			validParams = false
+		}
+	case "update_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+		if json_data == "" {
+			fmt.Println("json_schema parameter missing")
+			validParams = false
+		}
+		if version == 0 {
+			fmt.Println("version parameter missing")
+			validParams = false
+		}
+	case "delete_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+		if version == 0 {
+			fmt.Println("version parameter missing")
+			validParams = false
+		}
+	case "get_entity_schemas":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+	case "get_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+
 	case "get_server_version":
 		validParams = true
 	default:
@@ -913,6 +981,42 @@ func main() {
 		url := fmt.Sprintf("%s/api/role/claim/%d/%d", serverAddr, role_id, claim_value_id)
 		doMuxRequest(url, bearer, client, "DELETE", nil)
 
+	case "create_entity_schema":
+		req := pb.CreateEntitySchemaRequest{}
+		req.AccountId = account_id
+		req.EntityName = entity_name
+		req.JsonSchema = json_data
+		json, err := requestToJson(req)
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+			break
+		}
+
+		url := fmt.Sprintf("%s/api/schema", serverAddr)
+		doMuxRequest(url, bearer, client, "POST", json)
+	case "update_entity_schema":
+		req := pb.UpdateEntitySchemaRequest{}
+		req.AccountId = account_id
+		req.EntityName = entity_name
+		req.Version = int32(version)
+		req.JsonSchema = json_data
+		json, err := requestToJson(req)
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+			break
+		}
+
+		url := fmt.Sprintf("%s/api/schema/%d", serverAddr, account_id)
+		doMuxRequest(url, bearer, client, "PUT", json)
+	case "delete_entity_schema":
+		url := fmt.Sprintf("%s/api/schema/%d/%s/%d", serverAddr, account_id, entity_name, version)
+		doMuxRequest(url, bearer, client, "DELETE", nil)
+	case "get_entity_schema":
+		url := fmt.Sprintf("%s/api/schema/%d/%s", serverAddr, account_id, entity_name)
+		doMuxRequest(url, bearer, client, "GET", nil)
+	case "get_entity_schemas":
+		url := fmt.Sprintf("%s/api/schemas/%d", serverAddr, account_id)
+		doMuxRequest(url, bearer, client, "GET", nil)
 
 	case "get_server_version":
 		url := fmt.Sprintf("%s/api/server/version", serverAddr)
