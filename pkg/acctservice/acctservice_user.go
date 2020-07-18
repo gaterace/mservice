@@ -54,9 +54,10 @@ func (s *accountService) CreateAccountUser(ctx context.Context, req *pb.CreateAc
 	}
 
 	sqlstring := `INSERT INTO tb_AccountUser  (
-	dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, inbAccountId, chvEmail, chvUserFullName, intUserType, chvPasswordEnc)
+	dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, inbAccountId, chvEmail, chvUserFullName, intUserType, 
+	chvPasswordEnc, chvJsonData)
 	VALUES (NOW(), NOW(), NOW(), 0, 1,
-	?, ?, ?, ?, ?)`
+	?, ?, ?, ?, ?, ?)`
 
 	// generate encrypted password
 	enc, err := bcrypt.GenerateFromPassword([]byte(req.GetPasswordEnc()), 12)
@@ -79,7 +80,8 @@ func (s *accountService) CreateAccountUser(ctx context.Context, req *pb.CreateAc
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetAccountId(), req.GetEmail(), req.GetUserFullName(), req.GetUserType(), passwordEnc)
+	res, err := stmt.Exec(req.GetAccountId(), req.GetEmail(), req.GetUserFullName(), req.GetUserType(), passwordEnc,
+		req.GetJsonData())
 
 	if err == nil {
 		userId, err := res.LastInsertId()
@@ -106,7 +108,8 @@ func (s *accountService) UpdateAccountUser(ctx context.Context, req *pb.UpdateAc
 	resp := &pb.UpdateAccountUserResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_AccountUser SET dtmModified = NOW(), intVersion = ?, chvEmail = ?, chvUserFullName = ?, intUserType = ?
+	sqlstring := `UPDATE tb_AccountUser SET dtmModified = NOW(), intVersion = ?, chvEmail = ?, chvUserFullName = ?, 
+	intUserType = ?, chvJsonData = ?
     WHERE inbUserId = ? AND intVersion = ? AND bitIsDeleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
@@ -119,7 +122,8 @@ func (s *accountService) UpdateAccountUser(ctx context.Context, req *pb.UpdateAc
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetVersion()+1, req.GetEmail(), req.GetUserFullName(), req.GetUserType(), req.GetUserId(), req.GetVersion())
+	res, err := stmt.Exec(req.GetVersion()+1, req.GetEmail(), req.GetUserFullName(), req.GetUserType(), req.GetJsonData(),
+		req.GetUserId(), req.GetVersion())
 	if err == nil {
 		rowsAffected, _ := res.RowsAffected()
 		if rowsAffected == 1 {
@@ -259,7 +263,8 @@ func (s *accountService) GetAccountUserById(ctx context.Context, req *pb.GetAcco
 	resp := &pb.GetAccountUserByIdResponse{}
 	var err error
 
-	sqlstring := `SELECT inbUserId, dtmCreated, dtmModified, intVersion, inbAccountId, chvEmail, chvUserFullName, intUserType
+	sqlstring := `SELECT inbUserId, dtmCreated, dtmModified, intVersion, inbAccountId, chvEmail, chvUserFullName, 
+	intUserType, chvJsonData
 	FROM tb_AccountUser where inbUserId = ? AND bitIsDeleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
@@ -276,7 +281,8 @@ func (s *accountService) GetAccountUserById(ctx context.Context, req *pb.GetAcco
 	var created string
 	var modified string
 
-	err = stmt.QueryRow(req.GetUserId()).Scan(&user.UserId, &created, &modified, &user.Version, &user.AccountId, &user.Email, &user.UserFullName, &user.UserType)
+	err = stmt.QueryRow(req.GetUserId()).Scan(&user.UserId, &created, &modified, &user.Version, &user.AccountId,
+		&user.Email, &user.UserFullName, &user.UserType, &user.JsonData)
 
 	if err == nil {
 		user.Created = dml.DateTimeFromString(created)
@@ -311,7 +317,8 @@ func (s *accountService) GetAccountUserByEmail(ctx context.Context, req *pb.GetA
 	resp := &pb.GetAccountUserByEmailResponse{}
 	var err error
 
-	sqlstring := `SELECT u.inbUserId, u.dtmCreated, u.dtmModified, u.intVersion, u.inbAccountId, u.chvEmail, u.chvUserFullName, u.intUserType
+	sqlstring := `SELECT u.inbUserId, u.dtmCreated, u.dtmModified, u.intVersion, u.inbAccountId, u.chvEmail, 
+u.chvUserFullName, u.intUserType, u.chvJsonData
 	FROM tb_AccountUser AS u 
 	JOIN tb_Account AS a
 	ON u.inbAccountId = a.inbAccountId
@@ -331,7 +338,8 @@ func (s *accountService) GetAccountUserByEmail(ctx context.Context, req *pb.GetA
 	var created string
 	var modified string
 
-	err = stmt.QueryRow(req.GetAccountName(), req.GetEmail()).Scan(&user.UserId, &created, &modified, &user.Version, &user.AccountId, &user.Email, &user.UserFullName, &user.UserType)
+	err = stmt.QueryRow(req.GetAccountName(), req.GetEmail()).Scan(&user.UserId, &created, &modified, &user.Version,
+		&user.AccountId, &user.Email, &user.UserFullName, &user.UserType, &user.JsonData)
 
 	if err == nil {
 		user.Created = dml.DateTimeFromString(created)
@@ -364,7 +372,8 @@ func (s *accountService) GetAccountUsers(ctx context.Context, req *pb.GetAccount
 	resp := &pb.GetAccountUsersResponse{}
 	var err error
 
-	sqlstring := `SELECT u.inbUserId, u.dtmCreated, u.dtmModified, u.intVersion, u.inbAccountId, u.chvEmail, u.chvUserFullName, u.intUserType
+	sqlstring := `SELECT u.inbUserId, u.dtmCreated, u.dtmModified, u.intVersion, u.inbAccountId, u.chvEmail, 
+	u.chvUserFullName, u.intUserType, u.chvJsonData
 	FROM tb_AccountUser AS u 
 	JOIN tb_Account AS a
 	ON u.inbAccountId = a.inbAccountId
@@ -394,7 +403,8 @@ func (s *accountService) GetAccountUsers(ctx context.Context, req *pb.GetAccount
 		var created string
 		var modified string
 
-		err = rows.Scan(&user.UserId, &created, &modified, &user.Version, &user.AccountId, &user.Email, &user.UserFullName, &user.UserType)
+		err = rows.Scan(&user.UserId, &created, &modified, &user.Version, &user.AccountId, &user.Email, &user.UserFullName,
+			&user.UserType, &user.JsonData)
 		if err != nil {
 			level.Error(s.logger).Log("what", "Scan", "error", err)
 			resp.ErrorCode = 500

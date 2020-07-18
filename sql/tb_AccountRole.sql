@@ -22,6 +22,8 @@ CREATE TABLE tb_AccountRole
     inbAccountId BIGINT NOT NULL,
     -- descriptive name for role
     chvRoleName VARCHAR(20) NOT NULL,
+    -- data for entity ui extensions
+    chvJsonData VARCHAR(8000) NOT NULL
 
 
     PRIMARY KEY (inbRoleId),

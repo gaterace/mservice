@@ -17,6 +17,7 @@ package acctauth
 import (
 	"context"
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -39,6 +40,8 @@ const (
 	tokenExpiredMatch   = "Token is expired"
 	tokenExpiredMessage = "token is expired"
 )
+
+var NotImplemented = errors.New("not implemented")
 
 // Message receiver for account authorization.
 type AccountAuth struct {
@@ -1459,4 +1462,174 @@ func (s *AccountAuth) HelperRoleContains(roleId int64, claimName string, claimVa
 // get current server version and uptime - health check
 func (s *AccountAuth) GetServerVersion(ctx context.Context, req *pb.GetServerVersionRequest) (*pb.GetServerVersionResponse, error) {
 	return s.acctService.GetServerVersion(ctx, req)
+}
+
+// create an entity schema
+func (s *AccountAuth) CreateEntitySchema(ctx context.Context, req *pb.CreateEntitySchemaRequest) (*pb.CreateEntitySchemaResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.CreateEntitySchemaResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		aid := GetInt64FromClaims(claims, "aid")
+		accountId := req.GetAccountId()
+
+		if (acctmgt == "admin") && (aid == accountId) {
+			resp, err = s.acctService.CreateEntitySchema(ctx, req)
+		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "CreateEntitySchema",
+		"accountid", req.GetAccountId(),
+		"entity", req.GetEntityName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+}
+
+// update an entity schema
+func (s *AccountAuth) UpdateEntitySchema(ctx context.Context, req *pb.UpdateEntitySchemaRequest) (*pb.UpdateEntitySchemaResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.UpdateEntitySchemaResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		aid := GetInt64FromClaims(claims, "aid")
+		accountId := req.GetAccountId()
+
+		if (acctmgt == "admin") && (aid == accountId) {
+			resp, err = s.acctService.UpdateEntitySchema(ctx, req)
+		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "UpdateEntitySchema",
+		"accountid", req.GetAccountId(),
+		"entity", req.GetEntityName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+
+}
+
+// delete an entity schema
+func (s *AccountAuth) DeleteEntitySchema(ctx context.Context, req *pb.DeleteEntitySchemaRequest) (*pb.DeleteEntitySchemaResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.DeleteEntitySchemaResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		aid := GetInt64FromClaims(claims, "aid")
+		accountId := req.GetAccountId()
+
+		if (acctmgt == "admin") && (aid == accountId) {
+			resp, err = s.acctService.DeleteEntitySchema(ctx, req)
+		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "DeleteEntitySchema",
+		"accountid", req.GetAccountId(),
+		"entity", req.GetEntityName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+}
+
+// get an entity schema by name
+func (s *AccountAuth) GetEntitySchema(ctx context.Context, req *pb.GetEntitySchemaRequest) (*pb.GetEntitySchemaResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetEntitySchemaResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		aid := GetInt64FromClaims(claims, "aid")
+		accountId := req.GetAccountId()
+
+		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) || ((acctmgt == "acctro") && (aid == accountId)) {
+			resp, err = s.acctService.GetEntitySchema(ctx, req)
+		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetEntitySchema",
+		"accountid", req.GetAccountId(),
+		"entity", req.GetEntityName(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+}
+
+// get all entity schemas for account
+func (s *AccountAuth) GetEntitySchemas(ctx context.Context, req *pb.GetEntitySchemasRequest) (*pb.GetEntitySchemasResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetEntitySchemasResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		aid := GetInt64FromClaims(claims, "aid")
+		accountId := req.GetAccountId()
+
+		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) || ((acctmgt == "acctro") && (aid == accountId)) {
+			resp, err = s.acctService.GetEntitySchemas(ctx, req)
+		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetEntitySchemas",
+		"accountid", req.GetAccountId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
 }

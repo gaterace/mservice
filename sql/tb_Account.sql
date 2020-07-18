@@ -40,6 +40,8 @@ CREATE TABLE tb_Account
     chvPhone VARCHAR(20) NOT NULL,
     -- email address
     chvEmail VARCHAR(50) NOT NULL,
+    -- data for entity ui extensions
+    chvJsonData VARCHAR(8000) NOT NULL
 
 
     PRIMARY KEY (inbAccountId),

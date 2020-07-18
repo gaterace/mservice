@@ -28,6 +28,8 @@ CREATE TABLE tb_AccountUser
     intUserType INT NOT NULL,
     -- account user encrypted password hash
     chvPasswordEnc VARCHAR(255) NOT NULL,
+    -- data for entity ui extensions
+    chvJsonData VARCHAR(8000) NOT NULL
 
 
     PRIMARY KEY (inbUserId),

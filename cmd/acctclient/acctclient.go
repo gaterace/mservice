@@ -49,6 +49,7 @@ var state string
 var postal_code string
 var country_code string
 var phone string
+var json_data string
 var account_id int64
 var user_full_name string
 var user_type int
@@ -62,6 +63,7 @@ var claim_value_description string
 var claim_value_id int64
 var role_name string
 var role_id int64
+var entity_name string
 
 func init() {
 	// flag.StringVar(&cmd, "c", "", "acctclient command")
@@ -80,6 +82,7 @@ func init() {
 	flag.StringVar(&postal_code, "postal_code", "", "account address postal or zip code")
 	flag.StringVar(&country_code, "country_code", "us", "account address country code")
 	flag.StringVar(&phone, "phone", "", "account phone number")
+	flag.StringVar(&json_data, "j", "", "json extension data")
 	flag.Int64Var(&account_id, "account_id", 0, "unique identifier for an MService account")
 
 	flag.StringVar(&user_full_name, "user_full_name", "", "account user full name")
@@ -96,6 +99,8 @@ func init() {
 
 	flag.StringVar(&role_name, "role_name", "", "descriptive name for role")
 	flag.Int64Var(&role_id, "role_id", 0, "unique identifier for an MService account role")
+
+	flag.StringVar(&entity_name, "entity_name", "", "name of entity to be extended")
 
 }
 
@@ -147,18 +152,20 @@ func main() {
 		fmt.Printf("    %s create_account [-a <account>] --account_long_name <name>  --account_type <type>  \n", prog)
 		fmt.Println("          --address1 <address1> [--address2 <address2>] --city <city> --state <state>")
 		fmt.Println("          --postal_code <postal_code> [--country_code <country_code>] --phone <phone> -e <email>")
+		fmt.Println("          [-j <json_data]")
 		fmt.Printf("    %s update_account --account_id <account_id> [-a <account>] [--account_long_name <name>}  [--account_type <type>] \n", prog)
 		fmt.Println("          [--address1 <address1>] [--address2 <address2>] [--city <city>] [--state <state>]")
 		fmt.Println("          [--postal_code <postal_code>] [--country_code <country_code>] [--phone <phone>] [-e <email>]")
+		fmt.Println("          [-j <json_data>]")
 		fmt.Printf("    %s delete_account --account_id <account_id> \n", prog)
 		fmt.Printf("    %s get_account_by_id --account_id <account_id> \n", prog)
 		fmt.Printf("    %s get_account_by_name -a <account_name> \n", prog)
 		fmt.Printf("    %s get_account_names \n", prog)
 		fmt.Println(" ")
 		fmt.Printf("    %s create_account_user --account_id <account_id> -e <email> --user_full_name <user_full_name>\n", prog)
-		fmt.Println("          --user_type <user_type> --password <password>")
+		fmt.Println("          --user_type <user_type> --password <password> [-j <json_data>]")
 		fmt.Printf("    %s update_account_user --user_id <user_id> [-e <email>] [--user_full_name <user_full_name>]\n", prog)
-		fmt.Println("          [--user_type <user_type>]")
+		fmt.Println("          [--user_type <user_type>] [-j <json_data>]")
 		fmt.Printf("    %s update_account_user_password --user_id <user_id> --password_old <password_old> --password <password>\n", prog)
 		fmt.Printf("    %s delete_account_user --user_id <user_id>\n", prog)
 		fmt.Printf("    %s get_account_user_by_id --user_id <user_id>\n", prog)
@@ -176,8 +183,8 @@ func main() {
 		fmt.Printf("    %s get_claim_values_by_name_id --claim_name_id <claim_name_id> \n", prog)
 		fmt.Printf("    %s get_claim_values \n", prog)
 		fmt.Println(" ")
-		fmt.Printf("    %s create_account_role --account_id <account_id> --role_name <role_name>\n", prog)
-		fmt.Printf("    %s update_account_role --role_id <role_id> --role_name <role_name>\n", prog)
+		fmt.Printf("    %s create_account_role --account_id <account_id> --role_name <role_name> [-j <json_data>]\n", prog)
+		fmt.Printf("    %s update_account_role --role_id <role_id> --role_name <role_name> [-j <json_data>]\n", prog)
 		fmt.Printf("    %s delete_account_role --role_id <role_id>\n", prog)
 		fmt.Printf("    %s get_account_role_by_id --role_id <role_id>\n", prog)
 		fmt.Printf("    %s get_account_roles --account_id <account_id>\n", prog)
@@ -185,6 +192,11 @@ func main() {
 		fmt.Printf("    %s remove_user_from_role --user_id <user_id> --role_id <role_id>\n", prog)
 		fmt.Printf("    %s add_claim_to_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
 		fmt.Printf("    %s remove_claim_from_role --claim_value_id <claim_value_id> --role_id <role_id>\n", prog)
+		fmt.Printf("    %s create_entity_schema --account_id <account_id> --entity_name <entity_name> -j <json_schema> \n", prog)
+		fmt.Printf("    %s update_entity_schema --account_id <account_id> --entity_name <entity_name> -j <json_schema> \n", prog)
+		fmt.Printf("    %s delete_entity_schema --account_id <account_id> --entity_name <entity_name>\n", prog)
+		fmt.Printf("    %s get_entity_schema --account_id <account_id> --entity_name <entity_name>\n", prog)
+		fmt.Printf("    %s get_entity_schemas --account_id <account_id>\n", prog)
 
 		fmt.Printf("    %s get_server_version \n", prog)
 
@@ -457,6 +469,55 @@ func main() {
 			fmt.Println("role_id parameter missing")
 			validParams = false
 		}
+	case "create_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+		if json_data == "" {
+			fmt.Println("json_schema parameter missing")
+			validParams = false
+		}
+	case "update_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+		if json_data == "" {
+			fmt.Println("json_schema parameter missing")
+			validParams = false
+		}
+	case "delete_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+	case "get_entity_schema":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
+		if entity_name == "" {
+			fmt.Println("entity_name parameter missing")
+			validParams = false
+		}
+	case "get_entity_schemas":
+		if account_id == 0 {
+			fmt.Println("account_id parameter missing")
+			validParams = false
+		}
 	case "get_server_version":
 		validParams = true
 	default:
@@ -564,6 +625,7 @@ func main() {
 		req.CountryCode = cc
 		req.Phone = phone
 		req.Email = email
+		req.JsonData = json_data
 		resp, err := client.CreateAccount(mctx, &req)
 		if err == nil {
 			jtext, err := json.MarshalIndent(resp, "", "  ")
@@ -641,6 +703,12 @@ func main() {
 					req.Email = acct.GetEmail()
 				} else {
 					req.Email = email
+				}
+
+				if json_data == "" {
+					req.JsonData = acct.GetJsonData()
+				} else {
+					req.JsonData = json_data
 				}
 				resp, err := client.UpdateAccount(mctx, &req)
 				if err == nil {
@@ -736,6 +804,7 @@ func main() {
 		req.UserFullName = user_full_name
 		req.UserType = int32(user_type)
 		req.PasswordEnc = password
+		req.JsonData = json_data
 		resp, err := client.CreateAccountUser(mctx, &req)
 		if err == nil {
 			jtext, err := json.MarshalIndent(resp, "", "  ")
@@ -771,6 +840,11 @@ func main() {
 					req.UserType = pb_user.GetUserType()
 				} else {
 					req.UserType = int32(user_type)
+				}
+				if json_data == "" {
+					req.JsonData = pb_user.GetJsonData()
+				} else {
+					req.JsonData = json_data
 				}
 				resp, err := client.UpdateAccountUser(mctx, &req)
 				if err == nil {
@@ -1107,6 +1181,7 @@ func main() {
 		req := pb.CreateAccountRoleRequest{}
 		req.AccountId = account_id
 		req.RoleName = role_name
+		req.JsonData = json_data
 		resp, err := client.CreateAccountRole(mctx, &req)
 		if err == nil {
 			jtext, err := json.MarshalIndent(resp, "", "  ")
@@ -1128,6 +1203,11 @@ func main() {
 				req.RoleId = role_id
 				req.RoleName = role_name
 				req.Version = resp1.GetAccountRole().GetVersion()
+				if json_data == "" {
+					req.JsonData = resp1.GetAccountRole().GetJsonData()
+				} else {
+					req.JsonData = json_data
+				}
 				resp, err := client.UpdateAccountRole(mctx, &req)
 				if err == nil {
 					jtext, err := json.MarshalIndent(resp, "", "  ")
@@ -1253,6 +1333,116 @@ func main() {
 		req.ClaimValueId = claim_value_id
 		req.RoleId = role_id
 		resp, err := client.RemoveClaimFromRole(mctx, &req)
+		if err == nil {
+			jtext, err := json.MarshalIndent(resp, "", "  ")
+			if err == nil {
+				fmt.Println(string(jtext))
+			}
+		}
+
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+
+	case "create_entity_schema":
+		req := pb.CreateEntitySchemaRequest{}
+		req.AccountId = account_id
+		req.EntityName = entity_name
+		req.JsonSchema = json_data
+		resp, err := client.CreateEntitySchema(mctx, &req)
+		if err == nil {
+			jtext, err := json.MarshalIndent(resp, "", "  ")
+			if err == nil {
+				fmt.Println(string(jtext))
+			}
+		}
+
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+
+	case "update_entity_schema":
+		req1 := pb.GetEntitySchemaRequest{}
+		req1.AccountId = account_id
+		req1.EntityName = entity_name
+		resp1, err := client.GetEntitySchema(mctx, &req1)
+		if err == nil {
+			if resp1.GetErrorCode() == 0 {
+				req2 := pb.UpdateEntitySchemaRequest{}
+				req2.AccountId = account_id
+				req2.EntityName = entity_name
+				req2.Version = resp1.GetEntitySchema().GetVersion()
+				req2.JsonSchema = json_data
+				resp2, err := client.UpdateEntitySchema(mctx, &req2)
+				if err == nil {
+					jtext, err := json.MarshalIndent(resp2, "", "  ")
+					if err == nil {
+						fmt.Println(string(jtext))
+					}
+				}
+
+			} else {
+				jtext, err := json.MarshalIndent(resp1, "", "  ")
+				if err == nil {
+					fmt.Println(string(jtext))
+				}
+			}
+
+		}
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+
+	case "delete_entity_schema":
+		req1 := pb.GetEntitySchemaRequest{}
+		req1.AccountId = account_id
+		req1.EntityName = entity_name
+		resp1, err := client.GetEntitySchema(mctx, &req1)
+		if err == nil {
+			if resp1.GetErrorCode() == 0 {
+				req2 := pb.DeleteEntitySchemaRequest{}
+				req2.AccountId = account_id
+				req2.EntityName = entity_name
+				req2.Version = resp1.GetEntitySchema().GetVersion()
+				resp2, err := client.DeleteEntitySchema(mctx, &req2)
+				if err == nil {
+					jtext, err := json.MarshalIndent(resp2, "", "  ")
+					if err == nil {
+						fmt.Println(string(jtext))
+					}
+				}
+
+			} else {
+				jtext, err := json.MarshalIndent(resp1, "", "  ")
+				if err == nil {
+					fmt.Println(string(jtext))
+				}
+			}
+
+		}
+
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+	case "get_entity_schema":
+		req := pb.GetEntitySchemaRequest{}
+		req.AccountId = account_id
+		req.EntityName = entity_name
+		resp, err := client.GetEntitySchema(mctx, &req)
+		if err == nil {
+			jtext, err := json.MarshalIndent(resp, "", "  ")
+			if err == nil {
+				fmt.Println(string(jtext))
+			}
+		}
+
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+	case "get_entity_schemas":
+		req := pb.GetEntitySchemasRequest{}
+		req.AccountId = account_id
+		resp, err := client.GetEntitySchemas(mctx, &req)
 		if err == nil {
 			jtext, err := json.MarshalIndent(resp, "", "  ")
 			if err == nil {

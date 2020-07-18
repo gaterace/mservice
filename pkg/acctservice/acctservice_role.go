@@ -53,8 +53,9 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 
 	}
 
-	sqlstring := `INSERT INTO tb_AccountRole (dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, inbAccountId, chvRoleName)
-	VALUES (NOW(), NOW(), NOW(), 0, 1, ?, ?)`
+	sqlstring := `INSERT INTO tb_AccountRole (dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, inbAccountId, 
+	chvRoleName, chvJsonData)
+	VALUES (NOW(), NOW(), NOW(), 0, 1, ?, ?, ?)`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -66,7 +67,7 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetAccountId(), req.GetRoleName())
+	res, err := stmt.Exec(req.GetAccountId(), req.GetRoleName(), req.GetJsonData())
 	if err == nil {
 		roleId, err := res.LastInsertId()
 		if err != nil {
@@ -92,7 +93,7 @@ func (s *accountService) UpdateAccountRole(ctx context.Context, req *pb.UpdateAc
 	resp := &pb.UpdateAccountRoleResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_AccountRole SET dtmModified = NOW(), intVersion = ?, chvRoleName = ?
+	sqlstring := `UPDATE tb_AccountRole SET dtmModified = NOW(), intVersion = ?, chvRoleName = ?, chvJsonData = ?
 	WHERE inbRoleId = ? AND intVersion = ? AND bitIsDeleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
@@ -105,7 +106,7 @@ func (s *accountService) UpdateAccountRole(ctx context.Context, req *pb.UpdateAc
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetVersion()+1, req.GetRoleName(), req.GetRoleId(), req.GetVersion())
+	res, err := stmt.Exec(req.GetVersion()+1, req.GetRoleName(), req.GetJsonData(), req.GetRoleId(), req.GetVersion())
 
 	if err == nil {
 		rowsAffected, _ := res.RowsAffected()
@@ -167,7 +168,8 @@ func (s *accountService) GetAccountRoleById(ctx context.Context, req *pb.GetAcco
 	resp := &pb.GetAccountRoleByIdResponse{}
 	var err error
 
-	sqlstring := `SELECT inbRoleId, dtmCreated, dtmModified, intVersion, inbAccountId, chvRoleName FROM tb_AccountRole
+	sqlstring := `SELECT inbRoleId, dtmCreated, dtmModified, intVersion, inbAccountId, chvRoleName, chvJsonData  
+	FROM tb_AccountRole
 	WHERE inbRoleId = ? AND bitIsDeleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
@@ -184,7 +186,8 @@ func (s *accountService) GetAccountRoleById(ctx context.Context, req *pb.GetAcco
 	var created string
 	var modified string
 
-	err = stmt.QueryRow(req.GetRoleId()).Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId, &role.RoleName)
+	err = stmt.QueryRow(req.GetRoleId()).Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId,
+		&role.RoleName, &role.JsonData)
 
 	if err == nil {
 		role.Created = dml.DateTimeFromString(created)
@@ -417,7 +420,8 @@ func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRol
 
 	// s.logger.Printf("claimValMap: %v\n", claimValMap)
 
-	sqlstring := `SELECT ar.inbRoleId, ar.dtmCreated, ar.dtmModified, ar.intVersion, ar.inbAccountId, ar.chvRoleName 
+	sqlstring := `SELECT ar.inbRoleId, ar.dtmCreated, ar.dtmModified, ar.intVersion, ar.inbAccountId, ar.chvRoleName,
+	ar.chvJsonData 
     FROM tb_AccountRoleMap AS rm
 	JOIN tb_AccountRole AS ar
 	ON rm.inbRoleId = ar.inbRoleId
@@ -445,7 +449,7 @@ func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRol
 		var created string
 		var modified string
 
-		err = rows.Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId, &role.RoleName)
+		err = rows.Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId, &role.RoleName, &role.JsonData)
 		if err != nil {
 			level.Error(s.logger).Log("what", "Scan", "error", err)
 			return roles, err
@@ -475,7 +479,7 @@ func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccount
 		level.Error(s.logger).Log("what", "GetClaimValuesByAccountId", "error", err)
 	}
 
-	sqlstring := `SELECT inbRoleId, dtmCreated, dtmModified, intVersion, inbAccountId, chvRoleName FROM tb_AccountRole
+	sqlstring := `SELECT inbRoleId, dtmCreated, dtmModified, intVersion, inbAccountId, chvRoleName, chvJsonData  FROM tb_AccountRole
 	WHERE inbAccountId = ? AND bitIsDeleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
@@ -503,7 +507,7 @@ func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccount
 		var created string
 		var modified string
 
-		err = rows.Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId, &role.RoleName)
+		err = rows.Scan(&role.RoleId, &created, &modified, &role.Version, &role.AccountId, &role.RoleName, &role.JsonData)
 		if err != nil {
 			level.Error(s.logger).Log("what", "Scan", "error", err)
 			resp.ErrorCode = 500

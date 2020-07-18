@@ -16,6 +16,7 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+
 	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
@@ -33,10 +34,10 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 	sqlstring := `INSERT INTO tb_Account (
 		dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, 
 		chvAccountName, chvAccountLongName, intAccountType, chvAddress1, chvAddress2,
-		chvCity, chvState, chvPostalCode, chvCountryCode, chvPhone, chvEmail)
+		chvCity, chvState, chvPostalCode, chvCountryCode, chvPhone, chvEmail, chvJsonData)
 		VALUES (NOW(), NOW(), NOW(), 0, 1, 
 		?, ?, ?, ?, ?,
-		?, ?, ?, ?, ?, ?)`
+		?, ?, ?, ?, ?, ?, ?)`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -50,7 +51,7 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 
 	res, err := stmt.Exec(req.GetAccountName(), req.GetAccountLongName(), req.GetAccountType(), req.GetAddress1(),
 		req.GetAddress2(), req.GetCity(), req.GetState(), req.GetPostalCode(), req.GetCountryCode(),
-		req.GetPhone(), req.GetEmail())
+		req.GetPhone(), req.GetEmail(), req.GetJsonData())
 
 	if err == nil {
 		accountId, err := res.LastInsertId()
@@ -79,7 +80,7 @@ func (s *accountService) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 
 	sqlstring := `UPDATE tb_Account SET dtmModified = NOW(), intVersion = ?, chvAccountName = ?, chvAccountLongName = ?,
     intAccountType = ?, chvAddress1 = ?, chvAddress2 = ?, chvCity = ?, chvState = ?, chvPostalCode = ?,
-    chvCountryCode = ?, chvPhone = ?, chvEmail = ? WHERE inbAccountId = ? AND intVersion = ? AND bitIsDeleted = 0`
+    chvCountryCode = ?, chvPhone = ?, chvEmail = ?, chvJsonData = ? WHERE inbAccountId = ? AND intVersion = ? AND bitIsDeleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -93,7 +94,7 @@ func (s *accountService) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 
 	res, err := stmt.Exec(req.GetVersion()+1, req.GetAccountName(), req.GetAccountLongName(), req.GetAccountType(), req.GetAddress1(),
 		req.GetAddress2(), req.GetCity(), req.GetState(), req.GetPostalCode(), req.GetCountryCode(),
-		req.GetPhone(), req.GetEmail(), req.GetAccountId(), req.GetVersion())
+		req.GetPhone(), req.GetEmail(), req.GetJsonData(), req.GetAccountId(), req.GetVersion())
 
 	if err == nil {
 		rowsAffected, _ := res.RowsAffected()
@@ -157,7 +158,7 @@ func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountB
 
 	var sqlstring string = `SELECT inbAccountId, dtmCreated, dtmModified, intVersion, chvAccountName, chvAccountLongName,
 	intAccountType, chvAddress1, chvAddress2, chvCity, chvState, chvPostalCode, chvCountryCode, chvPhone,
-	chvEmail FROM tb_Account WHERE inbAccountId = ? AND bitIsDeleted = 0`
+	chvEmail, chvJsonData  FROM tb_Account WHERE inbAccountId = ? AND bitIsDeleted = 0`
 
 	var account pb.Account
 	var created string
@@ -176,7 +177,7 @@ func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountB
 	err = stmt.QueryRow(req.AccountId).Scan(&account.AccountId, &created, &modified, &account.Version,
 		&account.AccountName, &account.AccountLongName, &account.AccountType, &account.Address1,
 		&account.Address2, &account.City, &account.State, &account.PostalCode,
-		&account.CountryCode, &account.Phone, &account.Email)
+		&account.CountryCode, &account.Phone, &account.Email, &account.JsonData)
 	if err == nil {
 		account.Created = dml.DateTimeFromString(created)
 		account.Modified = dml.DateTimeFromString(modified)
@@ -203,7 +204,7 @@ func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccoun
 
 	var sqlstring string = `SELECT inbAccountId, dtmCreated, dtmModified, intVersion, chvAccountName, chvAccountLongName,
 	intAccountType, chvAddress1, chvAddress2, chvCity, chvState, chvPostalCode, chvCountryCode, chvPhone,
-	chvEmail FROM tb_Account WHERE chvAccountName = ? AND bitIsDeleted = 0`
+	chvEmail, chvJsonData  FROM tb_Account WHERE chvAccountName = ? AND bitIsDeleted = 0`
 
 	var account pb.Account
 	var created string
@@ -222,7 +223,7 @@ func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccoun
 	err = stmt.QueryRow(req.GetAccountName()).Scan(&account.AccountId, &created, &modified, &account.Version,
 		&account.AccountName, &account.AccountLongName, &account.AccountType, &account.Address1,
 		&account.Address2, &account.City, &account.State, &account.PostalCode,
-		&account.CountryCode, &account.Phone, &account.Email)
+		&account.CountryCode, &account.Phone, &account.Email, &account.JsonData)
 	if err == nil {
 		account.Created = dml.DateTimeFromString(created)
 		account.Modified = dml.DateTimeFromString(modified)

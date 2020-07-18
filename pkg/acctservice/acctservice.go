@@ -18,6 +18,8 @@ import (
 	"context"
 	"crypto/rsa"
 	"errors"
+	"github.com/gaterace/dml-go/pkg/dml"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	// "fmt"
@@ -196,4 +198,189 @@ func (s *accountService) GetServerVersion(ctx context.Context, req *pb.GetServer
 	resp.ServerUptime = currentSecs - s.startSecs
 
 	return resp, nil
+}
+
+// create an entity schema
+func (s *accountService) CreateEntitySchema(ctx context.Context, req *pb.CreateEntitySchemaRequest) (*pb.CreateEntitySchemaResponse, error) {
+	resp := &pb.CreateEntitySchemaResponse{}
+	var err error
+
+	sqlstring := `INSERT INTO tb_EntitySchema (inbAccountId, chvEntityName, dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, 
+	intVersion, chvJsonSchema) VALUES(?, ?, NOW(), NOW(), NOW(), 0, 1, ?)`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(req.GetAccountId(), req.GetEntityName(), req.GetJsonSchema())
+	if err == nil {
+		resp.Version = 1
+	} else {
+		resp.ErrorCode = 501
+		resp.ErrorMessage = err.Error()
+		level.Error(s.logger).Log("what", "Exec", "error", err)
+		err = nil
+	}
+
+	return resp, err
+}
+
+// update an entity schema
+func (s *accountService) UpdateEntitySchema(ctx context.Context, req *pb.UpdateEntitySchemaRequest) (*pb.UpdateEntitySchemaResponse, error) {
+	resp := &pb.UpdateEntitySchemaResponse{}
+	var err error
+
+	sqlstring := `UPDATE tb_EntitySchema SET dtmModified = NOW(), intVersion = ?, chvJsonSchema = ?  
+	WHERE inbAccountId = ? AND chvEntityName = ? AND intVersion = ? AND bitIsDeleted = 0`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(req.GetVersion() + 1, req.GetJsonSchema(), req.GetAccountId(), req.GetEntityName(), req.GetVersion())
+
+	if err == nil {
+		resp.Version = req.GetVersion() + 1
+	} else {
+		resp.ErrorCode = 501
+		resp.ErrorMessage = err.Error()
+		level.Error(s.logger).Log("what", "Exec", "error", err)
+		err = nil
+	}
+
+	return resp, err
+}
+
+// delete an entity schema
+func (s *accountService) DeleteEntitySchema(ctx context.Context, req *pb.DeleteEntitySchemaRequest) (*pb.DeleteEntitySchemaResponse, error) {
+	resp := &pb.DeleteEntitySchemaResponse{}
+	var err error
+
+	sqlstring := `UPDATE tb_EntitySchema SET dtmDeleted = NOW(), intVersion = ?, bitIsDeleted = 1
+	WHERE inbAccountId = ? AND chvEntityName = ? AND intVersion = ? AND bitIsDeleted = 0`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(req.GetVersion() + 1, req.GetAccountId(), req.GetEntityName(), req.GetVersion())
+
+	if err == nil {
+		resp.Version = req.GetVersion() + 1
+	} else {
+		resp.ErrorCode = 501
+		resp.ErrorMessage = err.Error()
+		level.Error(s.logger).Log("what", "Exec", "error", err)
+		err = nil
+	}
+
+	return resp, err
+}
+
+// get an entity schema by name
+func (s *accountService) GetEntitySchema(ctx context.Context, req *pb.GetEntitySchemaRequest) (*pb.GetEntitySchemaResponse, error) {
+	resp := &pb.GetEntitySchemaResponse{}
+	var err error
+
+	sqlstring := `SELECT inbAccountId, chvEntityName, dtmCreated, dtmModified, intVersion, chvJsonSchema
+	FROM tb_EntitySchema WHERE inbAccountId = ? AND chvEntityName = ? AND bitIsDeleted = 0`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	var entity pb.EntitySchema
+	var created string
+	var modified string
+
+	err = stmt.QueryRow(req.GetAccountId(), req.GetEntityName()).Scan(&entity.AccountId, &entity.EntityName,
+		&created, &modified, &entity.Version, &entity.JsonSchema)
+
+	if err == nil {
+		entity.Created = dml.DateTimeFromString(created)
+		entity.Modified = dml.DateTimeFromString(modified)
+		resp.EntitySchema = &entity
+	} else {
+		resp.ErrorCode = 501
+		resp.ErrorMessage = err.Error()
+		level.Error(s.logger).Log("what", "Exec", "error", err)
+		err = nil
+	}
+
+	return resp, err
+}
+
+// get all entity schemas for account
+func (s *accountService) GetEntitySchemas(ctx context.Context, req *pb.GetEntitySchemasRequest) (*pb.GetEntitySchemasResponse, error) {
+	resp := &pb.GetEntitySchemasResponse{}
+	var err error
+
+	sqlstring := `SELECT inbAccountId, chvEntityName, dtmCreated, dtmModified, intVersion, chvJsonSchema
+	FROM tb_EntitySchema WHERE inbAccountId = ? AND bitIsDeleted = 0`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	rows, err := stmt.Query(req.GetAccountId())
+
+	if err != nil {
+		level.Error(s.logger).Log("what", "Query", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = err.Error()
+		return resp, nil
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var entity pb.EntitySchema
+		var created string
+		var modified string
+
+		err = rows.Scan(&entity.AccountId, &entity.EntityName,
+			&created, &modified, &entity.Version, &entity.JsonSchema)
+		if err != nil {
+			level.Error(s.logger).Log("what", "Scan", "error", err)
+			resp.ErrorCode = 500
+			resp.ErrorMessage = err.Error()
+			return resp, nil
+		}
+
+		entity.Created = dml.DateTimeFromString(created)
+		entity.Modified = dml.DateTimeFromString(modified)
+		resp.EntitySchemas = append(resp.EntitySchemas, &entity)
+	}
+
+	return resp, err
 }
