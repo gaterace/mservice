@@ -1477,7 +1477,7 @@ func (s *AccountAuth) CreateEntitySchema(ctx context.Context, req *pb.CreateEnti
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
 
-		if (acctmgt == "admin") && (aid == accountId) {
+		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
 			resp, err = s.acctService.CreateEntitySchema(ctx, req)
 		}
 	} else {
@@ -1511,7 +1511,7 @@ func (s *AccountAuth) UpdateEntitySchema(ctx context.Context, req *pb.UpdateEnti
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
 
-		if (acctmgt == "admin") && (aid == accountId) {
+		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
 			resp, err = s.acctService.UpdateEntitySchema(ctx, req)
 		}
 	} else {
@@ -1546,7 +1546,7 @@ func (s *AccountAuth) DeleteEntitySchema(ctx context.Context, req *pb.DeleteEnti
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
 
-		if (acctmgt == "admin") && (aid == accountId) {
+		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
 			resp, err = s.acctService.DeleteEntitySchema(ctx, req)
 		}
 	} else {
