@@ -19,6 +19,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"github.com/gaterace/dml-go/pkg/dml"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -39,6 +40,8 @@ import (
 )
 
 var NotImplemented = errors.New("not implemented")
+
+var supportedEntities = [...]string{"account", "accountuser", "accountrole"}
 
 type accountService struct {
 	logger           log.Logger
@@ -205,6 +208,22 @@ func (s *accountService) CreateEntitySchema(ctx context.Context, req *pb.CreateE
 	resp := &pb.CreateEntitySchemaResponse{}
 	var err error
 
+	entityName := strings.ToLower(req.GetEntityName())
+
+	found := false
+	for  _, name := range supportedEntities {
+		if name == entityName {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		resp.ErrorCode = 401
+		resp.ErrorMessage = "schema entity name not supported"
+		return resp, nil
+	}
+
 	sqlstring := `INSERT INTO tb_EntitySchema (inbAccountId, chvEntityName, dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, 
 	intVersion, chvJsonSchema) VALUES(?, ?, NOW(), NOW(), NOW(), 0, 1, ?)`
 
@@ -218,7 +237,7 @@ func (s *accountService) CreateEntitySchema(ctx context.Context, req *pb.CreateE
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(req.GetAccountId(), req.GetEntityName(), req.GetJsonSchema())
+	_, err = stmt.Exec(req.GetAccountId(), entityName, req.GetJsonSchema())
 	if err == nil {
 		resp.Version = 1
 	} else {
@@ -236,6 +255,8 @@ func (s *accountService) UpdateEntitySchema(ctx context.Context, req *pb.UpdateE
 	resp := &pb.UpdateEntitySchemaResponse{}
 	var err error
 
+	entityName := strings.ToLower(req.GetEntityName())
+
 	sqlstring := `UPDATE tb_EntitySchema SET dtmModified = NOW(), intVersion = ?, chvJsonSchema = ?  
 	WHERE inbAccountId = ? AND chvEntityName = ? AND intVersion = ? AND bitIsDeleted = 0`
 
@@ -249,7 +270,7 @@ func (s *accountService) UpdateEntitySchema(ctx context.Context, req *pb.UpdateE
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(req.GetVersion() + 1, req.GetJsonSchema(), req.GetAccountId(), req.GetEntityName(), req.GetVersion())
+	_, err = stmt.Exec(req.GetVersion() + 1, req.GetJsonSchema(), req.GetAccountId(), entityName, req.GetVersion())
 
 	if err == nil {
 		resp.Version = req.GetVersion() + 1
@@ -268,6 +289,8 @@ func (s *accountService) DeleteEntitySchema(ctx context.Context, req *pb.DeleteE
 	resp := &pb.DeleteEntitySchemaResponse{}
 	var err error
 
+	entityName := strings.ToLower(req.GetEntityName())
+
 	sqlstring := `UPDATE tb_EntitySchema SET dtmDeleted = NOW(), intVersion = ?, bitIsDeleted = 1
 	WHERE inbAccountId = ? AND chvEntityName = ? AND intVersion = ? AND bitIsDeleted = 0`
 
@@ -281,7 +304,7 @@ func (s *accountService) DeleteEntitySchema(ctx context.Context, req *pb.DeleteE
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(req.GetVersion() + 1, req.GetAccountId(), req.GetEntityName(), req.GetVersion())
+	_, err = stmt.Exec(req.GetVersion() + 1, req.GetAccountId(), entityName, req.GetVersion())
 
 	if err == nil {
 		resp.Version = req.GetVersion() + 1
@@ -300,6 +323,8 @@ func (s *accountService) GetEntitySchema(ctx context.Context, req *pb.GetEntityS
 	resp := &pb.GetEntitySchemaResponse{}
 	var err error
 
+	entityName := strings.ToLower(req.GetEntityName())
+
 	sqlstring := `SELECT inbAccountId, chvEntityName, dtmCreated, dtmModified, intVersion, chvJsonSchema
 	FROM tb_EntitySchema WHERE inbAccountId = ? AND chvEntityName = ? AND bitIsDeleted = 0`
 
@@ -317,7 +342,7 @@ func (s *accountService) GetEntitySchema(ctx context.Context, req *pb.GetEntityS
 	var created string
 	var modified string
 
-	err = stmt.QueryRow(req.GetAccountId(), req.GetEntityName()).Scan(&entity.AccountId, &entity.EntityName,
+	err = stmt.QueryRow(req.GetAccountId(), entityName).Scan(&entity.AccountId, &entity.EntityName,
 		&created, &modified, &entity.Version, &entity.JsonSchema)
 
 	if err == nil {
