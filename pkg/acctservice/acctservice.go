@@ -41,7 +41,93 @@ import (
 
 var NotImplemented = errors.New("not implemented")
 
-var supportedEntities = [...]string{"account", "accountuser", "accountrole"}
+var supportedEntities = map[string]bool {
+	"account": true,
+	"accountuser": true,
+	"accountrole": true,
+	"accountrolemap": true,
+	"claim": true,
+	"claimvalue": true,
+	"roleclaimmap": true,
+	"entityschema": true,
+	"loginrequest": true,
+	"loginresponse": true,
+	"createaccountrequest": true,
+	"createaccountresponse": true,
+	"updateaccountrequest": true,
+	"updateaccountresponse": true,
+	"deleteaccountrequest": true,
+	"deleteaccountresponse": true,
+	"getaccountbyidrequest": true,
+	"getaccountbyidresponse": true,
+	"getaccountbynamerequest": true,
+	"getaccountbynameresponse": true,
+	"getaccountnamesrequest": true,
+	"getaccountnamesresponse": true,
+	"createaccountuserrequest": true,
+	"createaccountuserresponse": true,
+	"updateaccountuserrequest": true,
+	"updateaccountuserresponse": true,
+	"updateaccountuserpasswordrequest": true,
+	"updateaccountuserpasswordresponse": true,
+	"deleteaccountuserrequest": true,
+	"deleteaccountuserresponse": true,
+	"getaccountuserbyidrequest": true,
+	"getaccountuserbyidresponse": true,
+	"getaccountuserbyemailrequest": true,
+	"getaccountuserbyemailresponse": true,
+	"getaccountusersrequest": true,
+	"getaccountusersresponse": true,
+	"createclaimnamerequest": true,
+	"createclaimnameresponse": true,
+	"updateclaimnamerequest": true,
+	"updateclaimnameresponse": true,
+	"deleteclaimnamerequest": true,
+	"deleteclaimnameresponse": true,
+	"getclaimnamesrequest": true,
+	"getclaimnamesresponse": true,
+	"createclaimvaluerequest": true,
+	"createclaimvalueresponse": true,
+	"updateclaimvaluerequest": true,
+	"updateclaimvalueresponse": true,
+	"deleteclaimvaluerequest": true,
+	"deleteclaimvalueresponse": true,
+	"getclaimvaluebyidrequest": true,
+	"getclaimvaluebyidresponse": true,
+	"getclaimvaluesbynameidrequest": true,
+	"getclaimvaluesbynameidresponse": true,
+	"getclaimvaluesrequest": true,
+	"getclaimvaluesresponse": true,
+	"createaccountrolerequest": true,
+	"createaccountroleresponse": true,
+	"updateaccountrolerequest": true,
+	"updateaccountroleresponse": true,
+	"deleteaccountrolerequest": true,
+	"deleteaccountroleresponse": true,
+	"getaccountrolebyidrequest": true,
+	"getaccountrolebyidresponse": true,
+	"getaccountrolesrequest": true,
+	"getaccountrolesresponse": true,
+	"addusertorolerequest": true,
+	"addusertoroleresponse": true,
+	"removeuserfromrolerequest": true,
+	"removeuserfromroleresponse": true,
+	"addclaimtorolerequest": true,
+	"addclaimtoroleresponse": true,
+	"removeclaimfromrolerequest": true,
+	"removeclaimfromroleresponse": true,
+	"getserverversionrequest": true,
+	"getserverversionresponse": true,
+	"createentityschemarequest": true,
+	"createentityschemaresponse": true,
+	"updateentityschemarequest": true,
+	"updateentityschemaresponse": true,
+	"deleteentityschemarequest": true,
+	"deleteentityschemaresponse": true,
+	"getentityschemarequest": true,
+	"getentityschemaresponse": true,
+	"getentityschemasrequest": true,
+	"getentityschemasresponse": true}
 
 type accountService struct {
 	logger           log.Logger
@@ -210,13 +296,7 @@ func (s *accountService) CreateEntitySchema(ctx context.Context, req *pb.CreateE
 
 	entityName := strings.ToLower(req.GetEntityName())
 
-	found := false
-	for  _, name := range supportedEntities {
-		if name == entityName {
-			found = true
-			break
-		}
-	}
+	_, found := supportedEntities[entityName]
 
 	if !found {
 		resp.ErrorCode = 401
