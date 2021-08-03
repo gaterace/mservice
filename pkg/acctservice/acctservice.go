@@ -1,4 +1,4 @@
-// Copyright 2019 Demian Harvill
+// Copyright 2019-2021 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -18,13 +18,14 @@ import (
 	"context"
 	"crypto/rsa"
 	"errors"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	// "fmt"
 	"io/ioutil"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 
 	"google.golang.org/grpc"
@@ -192,7 +193,7 @@ func (s *accountService) GetServerVersion(ctx context.Context, req *pb.GetServer
 	resp := &pb.GetServerVersionResponse{}
 
 	currentSecs := time.Now().Unix()
-	resp.ServerVersion = "v0.9.4"
+	resp.ServerVersion = "v0.9.5"
 	resp.ServerUptime = currentSecs - s.startSecs
 
 	return resp, nil
