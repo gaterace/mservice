@@ -16,11 +16,12 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+
 	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
 )
@@ -30,13 +31,13 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 	resp := &pb.CreateAccountResponse{}
 	var err error
 
-	sqlstring := `INSERT INTO tb_Account (
-		dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, 
-		chvAccountName, chvAccountLongName, intAccountType, chvAddress1, chvAddress2,
-		chvCity, chvState, chvPostalCode, chvCountryCode, chvPhone, chvEmail)
-		VALUES (NOW(), NOW(), NOW(), 0, 1, 
-		?, ?, ?, ?, ?,
-		?, ?, ?, ?, ?, ?)`
+	sqlstring := `INSERT INTO tb_account (
+		created, modified, deleted, is_deleted, version, 
+		account_name, account_long_name, account_type, address1, address2,
+		city, state, postal_code, country_code, phone, email)
+		VALUES (now(), now(), now(), false, 1, 
+		$1, $2, $3, $4, $5,
+		$6, $7, $8, $9, $10, $11) RETURNING account_id`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -48,24 +49,19 @@ func (s *accountService) CreateAccount(ctx context.Context, req *pb.CreateAccoun
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetAccountName(), req.GetAccountLongName(), req.GetAccountType(), req.GetAddress1(),
+	var accountId int64
+
+	err = stmt.QueryRow(req.GetAccountName(), req.GetAccountLongName(), req.GetAccountType(), req.GetAddress1(),
 		req.GetAddress2(), req.GetCity(), req.GetState(), req.GetPostalCode(), req.GetCountryCode(),
-		req.GetPhone(), req.GetEmail())
+		req.GetPhone(), req.GetEmail()).Scan(&accountId)
 
 	if err == nil {
-		accountId, err := res.LastInsertId()
-		if err != nil {
-			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
-		} else {
-			level.Debug(s.logger).Log("accountId", accountId)
-		}
-
 		resp.AccountId = accountId
 		resp.Version = 1
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		level.Error(s.logger).Log("what", "Exec", "error", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		err = nil
 	}
 
@@ -77,9 +73,9 @@ func (s *accountService) UpdateAccount(ctx context.Context, req *pb.UpdateAccoun
 	resp := &pb.UpdateAccountResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_Account SET dtmModified = NOW(), intVersion = ?, chvAccountName = ?, chvAccountLongName = ?,
-    intAccountType = ?, chvAddress1 = ?, chvAddress2 = ?, chvCity = ?, chvState = ?, chvPostalCode = ?,
-    chvCountryCode = ?, chvPhone = ?, chvEmail = ? WHERE inbAccountId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_account SET modified = now(), version = $1, account_name = $2, account_long_name = $3,
+    account_type = $4, address1 = $5, address2 = $6, city = $7, state = $8, postal_code = $9,
+    country_code = $10, phone = $11, email = $12 WHERE account_id = $13 AND version = $14 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -118,8 +114,8 @@ func (s *accountService) DeleteAccount(ctx context.Context, req *pb.DeleteAccoun
 	resp := &pb.DeleteAccountResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_Account SET bitIsDeleted = 1, dtmDeleted = NOW(), intVersion = ? 
-	WHERE inbAccountId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_account SET is_deleted = true, deleted = now(), version = $1 
+	WHERE account_id = $2 AND version = $3 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -155,9 +151,9 @@ func (s *accountService) DeleteAccount(ctx context.Context, req *pb.DeleteAccoun
 func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountByIdRequest) (*pb.GetAccountByIdResponse, error) {
 	resp := &pb.GetAccountByIdResponse{}
 
-	var sqlstring string = `SELECT inbAccountId, dtmCreated, dtmModified, intVersion, chvAccountName, chvAccountLongName,
-	intAccountType, chvAddress1, chvAddress2, chvCity, chvState, chvPostalCode, chvCountryCode, chvPhone,
-	chvEmail FROM tb_Account WHERE inbAccountId = ? AND bitIsDeleted = 0`
+	var sqlstring string = `SELECT account_id, created, modified, version, account_name, account_long_name,
+	account_type, address1, address2, city, state, postal_code, country_code, phone,
+	email FROM tb_account WHERE account_id = $1 AND is_deleted = false`
 
 	var account pb.Account
 	var created string
@@ -201,9 +197,9 @@ func (s *accountService) GetAccountById(ctx context.Context, req *pb.GetAccountB
 func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccountByNameRequest) (*pb.GetAccountByNameResponse, error) {
 	resp := &pb.GetAccountByNameResponse{}
 
-	var sqlstring string = `SELECT inbAccountId, dtmCreated, dtmModified, intVersion, chvAccountName, chvAccountLongName,
-	intAccountType, chvAddress1, chvAddress2, chvCity, chvState, chvPostalCode, chvCountryCode, chvPhone,
-	chvEmail FROM tb_Account WHERE chvAccountName = ? AND bitIsDeleted = 0`
+	var sqlstring string = `SELECT account_id, created, modified, version, account_name, account_long_name,
+	account_type, address1, address2, city, state, postal_code, country_code, phone,
+	email FROM tb_account WHERE account_name = $1 AND is_deleted = false`
 
 	var account pb.Account
 	var created string
@@ -247,7 +243,7 @@ func (s *accountService) GetAccountByName(ctx context.Context, req *pb.GetAccoun
 func (s *accountService) GetAccountNames(ctx context.Context, req *pb.GetAccountNamesRequest) (*pb.GetAccountNamesResponse, error) {
 	resp := &pb.GetAccountNamesResponse{}
 
-	var sqlstring string = `SELECT chvAccountName FROM tb_Account WHERE bitIsDeleted = 0`
+	var sqlstring string = `SELECT account_name FROM tb_account WHERE is_deleted = false`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
 		level.Error(s.logger).Log("what", "Prepare", "error", err)

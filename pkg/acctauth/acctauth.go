@@ -26,7 +26,7 @@ import (
 
 	"database/sql"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -1357,7 +1357,7 @@ func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveCla
 
 // Helper to get account id from user id.
 func (s *AccountAuth) HelperAccountIdFromUserid(userId int64) (int64, error) {
-	sqlstring := `SELECT inbAccountId FROM tb_AccountUser WHERE inbUserId = ? AND bitIsDeleted = 0`
+	sqlstring := `SELECT account_id FROM tb_accountuser WHERE user_id = $1 AND is_deleted = false`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
 		level.Error(s.logger).Log("what", "Prepare", "error", err)
@@ -1379,7 +1379,7 @@ func (s *AccountAuth) HelperAccountIdFromUserid(userId int64) (int64, error) {
 
 // Helper to get account id from role id.
 func (s *AccountAuth) HelperAccountIdFromRoleId(roleId int64) (int64, error) {
-	sqlstring := `SELECT inbAccountId FROM tb_AccountRole WHERE inbRoleId = ? AND bitIsDeleted = 0`
+	sqlstring := `SELECT account_id FROM tb_accountrole WHERE role_id = $1 AND is_deleted = false`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
 		level.Error(s.logger).Log("what", "Prepare", "error", err)
@@ -1403,8 +1403,8 @@ func (s *AccountAuth) HelperAccountIdFromRoleId(roleId int64) (int64, error) {
 func (s *AccountAuth) HelperClaimFromClaimValueId(claimValueId int64) (string, string, error) {
 	var claimName string
 	var claimValue string
-	sqlstring := `SELECT c.chvClaimName, v.chvClaimVal FROM tb_ClaimValue AS v JOIN tb_Claim AS c ON v.inbClaimNameId = c.inbClaimNameId  
-	WHERE v.inbClaimValueId = ? AND v.bitIsDeleted = 0 AND c.bitIsDeleted = 0`
+	sqlstring := `SELECT c.claim_name, v.claim_val FROM tb_claimvalue AS v JOIN tb_claim AS c ON v.claim_name_id = c.claim_name_id  
+	WHERE v.claim_value_id = $1 AND v.is_deleted = false AND c.is_deleted = false`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
 		level.Error(s.logger).Log("what", "Prepare", "error", err)
@@ -1420,9 +1420,9 @@ func (s *AccountAuth) HelperClaimFromClaimValueId(claimValueId int64) (string, s
 
 func (s *AccountAuth) HelperRoleContains(roleId int64, claimName string, claimValue string) bool {
 
-	sqlstring := `SELECT c.chvClaimName,  v.chvClaimVal FROM tb_RoleClaimMap AS r JOIN  tb_ClaimValue AS v ON r.inbClaimValueId = v.inbClaimValueId  
-	JOIN tb_Claim AS c on v.inbClaimNameId = c.inbClaimNameId  where r.inbRoleId = ? AND r.bitIsDeleted = 0 AND 
-	v.bitIsDeleted = 0 AND c.bitIsDeleted = 0`
+	sqlstring := `SELECT c.claim_name,  v.claim_val FROM tb_roleclaimmap AS r JOIN  tb_claimvalue AS v ON r.claim_value_id = v.claim_value_id  
+	JOIN tb_claim AS c on v.claim_name_id = c.claim_name_id  where r.role_id = $1 AND r.is_deleted = 0 AND 
+	v.is_deleted = 0 AND c.is_deleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {

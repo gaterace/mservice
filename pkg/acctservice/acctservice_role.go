@@ -1,4 +1,4 @@
-// Copyright 2019 Demian Harvill
+// Copyright 2019-2021 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,11 +16,12 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+
 	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
 )
@@ -30,7 +31,7 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 	resp := &pb.CreateAccountRoleResponse{}
 	var err error
 
-	sqlstring1 := `SELECT inbAccountId FROM tb_Account WHERE inbAccountId = ? AND bitIsDeleted = 0`
+	sqlstring1 := `SELECT account_id FROM tb_account WHERE account_id = $1 AND is_deleted = false`
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
@@ -53,8 +54,8 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 
 	}
 
-	sqlstring := `INSERT INTO tb_AccountRole (dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, inbAccountId, chvRoleName)
-	VALUES (NOW(), NOW(), NOW(), 0, 1, ?, ?)`
+	sqlstring := `INSERT INTO tb_accountrole (created, modified, deleted, is_deleted, version, account_id, role_name)
+	VALUES (now(), now(), now(), false, 1, $1, $2) RETURNING role_id`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -66,21 +67,17 @@ func (s *accountService) CreateAccountRole(ctx context.Context, req *pb.CreateAc
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetAccountId(), req.GetRoleName())
-	if err == nil {
-		roleId, err := res.LastInsertId()
-		if err != nil {
-			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
-		} else {
-			level.Debug(s.logger).Log("roleId", roleId)
-		}
+	var roleId int64
 
+	err = stmt.QueryRow(req.GetAccountId(), req.GetRoleName()).Scan(&roleId)
+
+	if err == nil {
 		resp.RoleId = roleId
 		resp.Version = 1
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		level.Error(s.logger).Log("what", "Exec", "error", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		err = nil
 	}
 
@@ -92,8 +89,8 @@ func (s *accountService) UpdateAccountRole(ctx context.Context, req *pb.UpdateAc
 	resp := &pb.UpdateAccountRoleResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_AccountRole SET dtmModified = NOW(), intVersion = ?, chvRoleName = ?
-	WHERE inbRoleId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_accountrole SET modified = now(), version = $1, role_name = $2
+	WHERE role_id = $3 AND version = $4 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -130,8 +127,8 @@ func (s *accountService) DeleteAccountRole(ctx context.Context, req *pb.DeleteAc
 	resp := &pb.DeleteAccountRoleResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_AccountRole SET dtmDeleted = NOW(), bitIsDeleted = 1, intVersion = ?
-	WHERE inbRoleId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_accountrole SET deleted = now(), is_deleted = true, version = $1
+	WHERE role_id = $2 AND version = $3 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -167,8 +164,8 @@ func (s *accountService) GetAccountRoleById(ctx context.Context, req *pb.GetAcco
 	resp := &pb.GetAccountRoleByIdResponse{}
 	var err error
 
-	sqlstring := `SELECT inbRoleId, dtmCreated, dtmModified, intVersion, inbAccountId, chvRoleName FROM tb_AccountRole
-	WHERE inbRoleId = ? AND bitIsDeleted = 0`
+	sqlstring := `SELECT role_id, created, modified, version, account_id, role_name FROM tb_accountrole
+	WHERE role_id = $1 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -214,14 +211,14 @@ func (s *accountService) GetClaimValuesByRoleById(roleId int64) ([]*pb.ClaimValu
 	var res []*pb.ClaimValue
 	var err error
 
-	sqlstring := `SELECT cv.inbClaimValueId, cv.dtmCreated, cv.dtmModified, cv.intVersion, cv.inbClaimNameId, cv.chvClaimVal, cv.chvClaimValueDescription,
-	cn.inbClaimNameId, cn.dtmCreated, cn.dtmModified, cn.intVersion, cn.chvClaimName, cn.chvClaimDescription
-	FROM tb_RoleClaimMap AS rcm
-	JOIN tb_ClaimValue AS cv
-	ON rcm.inbClaimValueId = cv.inbClaimValueId
-	JOIN tb_Claim AS cn
-	ON cv.inbClaimNameId = cn.inbClaimNameId
-	WHERE rcm.inbRoleId = ? AND rcm.bitIsDeleted = 0 and cv.bitIsDeleted = 0 AND cn.bitIsDeleted = 0`
+	sqlstring := `SELECT cv.claim_value_id, cv.created, cv.modified, cv.version, cv.claim_name_id, cv.claim_val, cv.claim_value_description,
+	cn.claim_name_id, cn.created, cn.modified, cn.version, cn.claim_name, cn.claim_description
+	FROM tb_roleclaimmap AS rcm
+	JOIN tb_claimvalue AS cv
+	ON rcm.claim_value_id = cv.claim_value_id
+	JOIN tb_claim AS cn
+	ON cv.claim_name_id = cn.claim_name_id
+	WHERE rcm.role_id = $1 AND rcm.is_deleted = false and cv.is_deleted = false AND cn.is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -273,16 +270,16 @@ func (s *accountService) GetClaimValuesByAccountId(accountId int64) (map[int64][
 	res := make(map[int64][]*pb.ClaimValue)
 	var err error
 
-	sqlstring := `SELECT ar.inbRoleId, cv.inbClaimValueId, cv.dtmCreated, cv.dtmModified, cv.intVersion, cv.inbClaimNameId, cv.chvClaimVal, cv.chvClaimValueDescription,
-	cn.inbClaimNameId, cn.dtmCreated, cn.dtmModified, cn.intVersion, cn.chvClaimName, cn.chvClaimDescription
-	FROM tb_AccountRole AS ar
-	JOIN tb_RoleClaimMap AS rcm
-	ON ar.inbRoleId = rcm.inbRoleId
-	JOIN tb_ClaimValue AS cv
-	ON rcm.inbClaimValueId = cv.inbClaimValueId
-	JOIN tb_Claim AS cn
-	ON cv.inbClaimNameId = cn.inbClaimNameId
-	WHERE ar.inbAccountId = ? AND ar.bitIsDeleted = 0 AND rcm.bitIsDeleted = 0 and cv.bitIsDeleted = 0 AND cn.bitIsDeleted = 0`
+	sqlstring := `SELECT ar.role_id, cv.claim_value_id, cv.created, cv.modified, cv.version, cv.claim_name_id, cv.claim_val, cv.claim_value_description,
+	cn.claim_name_id, cn.created, cn.modified, cn.version, cn.claim_name, cn.claim_description
+	FROM tb_accountrole AS ar
+	JOIN tb_roleclaimmap AS rcm
+	ON ar.role_id = rcm.role_id
+	JOIN tb_claimvalue AS cv
+	ON rcm.claim_value_id = cv.claim_value_id
+	JOIN tb_claim AS cn
+	ON cv.claim_name_id = cn.claim_name_id
+	WHERE ar.inbAccountId = $1 AND ar.is_deleted = false AND rcm.is_deleted = false and cv.is_deleted = false AND cn.is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -340,16 +337,16 @@ func (s *accountService) GetClaimValuesByUserId(userId int64) (map[int64][]*pb.C
 	res := make(map[int64][]*pb.ClaimValue)
 	var err error
 
-	sqlstring := `SELECT ar.inbRoleId, cv.inbClaimValueId, cv.dtmCreated, cv.dtmModified, cv.intVersion, cv.inbClaimNameId, cv.chvClaimVal, cv.chvClaimValueDescription,
-	cn.inbClaimNameId, cn.dtmCreated, cn.dtmModified, cn.intVersion, cn.chvClaimName, cn.chvClaimDescription
-	FROM tb_AccountRoleMap AS ar
-	JOIN tb_RoleClaimMap AS rcm
-	ON ar.inbRoleId = rcm.inbRoleId
-	JOIN tb_ClaimValue AS cv
-	ON rcm.inbClaimValueId = cv.inbClaimValueId
-	JOIN tb_Claim AS cn
-	ON cv.inbClaimNameId = cn.inbClaimNameId
-	WHERE ar.inbUserId = ? AND ar.bitIsDeleted = 0 AND rcm.bitIsDeleted = 0 and cv.bitIsDeleted = 0 AND cn.bitIsDeleted = 0`
+	sqlstring := `SELECT ar.role_id, cv.claim_value_id, cv.created, cv.modified, cv.version, cv.claim_name_id, cv.claim_val, cv.claim_value_description,
+	cn.claim_name_id, cn.created, cn.modified, cn.version, cn.claim_name, cn.claim_description
+	FROM tb_accountrolemap AS ar
+	JOIN tb_roleclaimmap AS rcm
+	ON ar.role_id = rcm.role_id
+	JOIN tb_claimvalue AS cv
+	ON rcm.claim_value_id = cv.claim_value_id
+	JOIN tb_claim AS cn
+	ON cv.claim_name_id = cn.claim_name_id
+	WHERE ar.user_id = $1 AND ar.is_deleted = false AND rcm.is_deleted = false and cv.is_deleted = false AND cn.is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -417,11 +414,11 @@ func (s *accountService) GetAccountRolesByUserId(userId int64) ([]*pb.AccountRol
 
 	// s.logger.Printf("claimValMap: %v\n", claimValMap)
 
-	sqlstring := `SELECT ar.inbRoleId, ar.dtmCreated, ar.dtmModified, ar.intVersion, ar.inbAccountId, ar.chvRoleName 
-    FROM tb_AccountRoleMap AS rm
-	JOIN tb_AccountRole AS ar
-	ON rm.inbRoleId = ar.inbRoleId
-	WHERE rm.inbUserId = ? AND ar.bitIsDeleted = 0 AND rm.bitIsDeleted = 0`
+	sqlstring := `SELECT ar.role_id, ar.created, ar.modified, ar.version, ar.account_id, ar.role_name 
+    FROM tb_accountrolemap AS rm
+	JOIN tb_accountrole AS ar
+	ON rm.role_id = ar.role_id
+	WHERE rm.user_id = $1 AND ar.is_deleted = false AND rm.is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -475,8 +472,8 @@ func (s *accountService) GetAccountRoles(ctx context.Context, req *pb.GetAccount
 		level.Error(s.logger).Log("what", "GetClaimValuesByAccountId", "error", err)
 	}
 
-	sqlstring := `SELECT inbRoleId, dtmCreated, dtmModified, intVersion, inbAccountId, chvRoleName FROM tb_AccountRole
-	WHERE inbAccountId = ? AND bitIsDeleted = 0`
+	sqlstring := `SELECT role_id, created, modified, version, account_id, role_name FROM tb_accountrole
+	WHERE account_id = $1 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -528,8 +525,8 @@ func (s *accountService) AddUserToRole(ctx context.Context, req *pb.AddUserToRol
 	resp := &pb.AddUserToRoleResponse{}
 	var err error
 
-	sqlstring := `INSERT INTO tb_AccountRoleMap (inbUserId, inbRoleId, dtmCreated, dtmDeleted, bitIsDeleted)
-	VALUES (?, ?, NOW(), NOW(), 0)`
+	sqlstring := `INSERT INTO tb_accountrolemap (user_id, role_id, created, deleted, is_deleted)
+	VALUES ($1, $2, now(), now(), false)`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -554,8 +551,8 @@ func (s *accountService) AddUserToRole(ctx context.Context, req *pb.AddUserToRol
 
 	// might be trying to add back a previously deleted entry
 
-	sqlstring1 := `UPDATE tb_AccountRoleMap SET dtmCreated = NOW(), dtmDeleted = NOW(), bitIsDeleted = 0
-	WHERE  inbUserId = ? AND inbRoleId = ? AND bitIsDeleted = 1`
+	sqlstring1 := `UPDATE tb_accountrolemap SET created = now(), deleted = now(), is_deleted = false
+	WHERE  user_id = $1 AND role_id = $2 AND is_deleted = true`
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
@@ -589,7 +586,7 @@ func (s *accountService) RemoveUserFromRole(ctx context.Context, req *pb.RemoveU
 	resp := &pb.RemoveUserFromRoleResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_AccountRoleMap SET dtmDeleted = NOW(), bitIsDeleted = 1 WHERE inbUserId = ? AND inbRoleId = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_accountrolemap SET deleted = now(), is_deleted = true WHERE user_id = $1 AND role_id = $2 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -623,8 +620,8 @@ func (s *accountService) AddClaimToRole(ctx context.Context, req *pb.AddClaimToR
 	resp := &pb.AddClaimToRoleResponse{}
 	var err error
 
-	sqlstring := `INSERT INTO tb_RoleClaimMap (inbRoleId, inbClaimValueId, dtmCreated, dtmDeleted, bitIsDeleted)
-	VALUES(?, ?, NOW(), NOW(), 0)`
+	sqlstring := `INSERT INTO tb_roleclaimmap (role_id, claim_value_id, created, deleted, is_deleted)
+	VALUES($1, $2, now(), now(), false)`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -649,8 +646,8 @@ func (s *accountService) AddClaimToRole(ctx context.Context, req *pb.AddClaimToR
 
 	// might be trying to add back a previously deleted entry
 
-	sqlstring1 := `UPDATE tb_RoleClaimMap SET dtmCreated = NOW(), dtmDeleted = NOW(), bitIsDeleted = 0
-	WHERE inbRoleId = ? AND inbClaimValueId = ? AND bitIsDeleted = 1`
+	sqlstring1 := `UPDATE tb_roleclaimmap SET created = now(), deleted = now(), is_deleted = false
+	WHERE role_id = $1 AND claim_value_id = $2 AND is_deleted = true`
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
@@ -685,8 +682,8 @@ func (s *accountService) RemoveClaimFromRole(ctx context.Context, req *pb.Remove
 	resp := &pb.RemoveClaimFromRoleResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_RoleClaimMap SET dtmDeleted = NOW(), bitIsDeleted = 1
-	WHERE inbRoleId = ? AND inbClaimValueId = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_roleclaimmap SET deleted = now(), is_deleted = true
+	WHERE role_id = $1 AND claim_value_id = $2 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {

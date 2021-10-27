@@ -1,4 +1,4 @@
-// Copyright 2019 Demian Harvill
+// Copyright 2019-2021 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -16,10 +16,11 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+
 	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
@@ -30,7 +31,7 @@ func (s *accountService) CreateAccountUser(ctx context.Context, req *pb.CreateAc
 	resp := &pb.CreateAccountUserResponse{}
 	var err error
 
-	sqlstring1 := `SELECT inbAccountId FROM tb_Account WHERE inbAccountId = ? AND bitIsDeleted = 0`
+	sqlstring1 := `SELECT account_id FROM tb_account WHERE account_id = ? AND is_deleted = 0`
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
@@ -53,10 +54,10 @@ func (s *accountService) CreateAccountUser(ctx context.Context, req *pb.CreateAc
 
 	}
 
-	sqlstring := `INSERT INTO tb_AccountUser  (
-	dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, inbAccountId, chvEmail, chvUserFullName, intUserType, chvPasswordEnc)
-	VALUES (NOW(), NOW(), NOW(), 0, 1,
-	?, ?, ?, ?, ?)`
+	sqlstring := `INSERT INTO tb_accountuser  (
+	created, modified, deleted, is_deleted, version, account_id, email, user_full_name, user_type, password_enc)
+	VALUES (now(), now(), now(), false, 1,
+	$1, $2, $3, $4, $5) RETURNING user_id`
 
 	// generate encrypted password
 	enc, err := bcrypt.GenerateFromPassword([]byte(req.GetPasswordEnc()), 12)
@@ -79,22 +80,17 @@ func (s *accountService) CreateAccountUser(ctx context.Context, req *pb.CreateAc
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetAccountId(), req.GetEmail(), req.GetUserFullName(), req.GetUserType(), passwordEnc)
+	var userId int64
+
+	err = stmt.QueryRow(req.GetAccountId(), req.GetEmail(), req.GetUserFullName(), req.GetUserType(), passwordEnc).Scan(&userId)
 
 	if err == nil {
-		userId, err := res.LastInsertId()
-		if err != nil {
-			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
-		} else {
-			level.Debug(s.logger).Log("userId", userId)
-		}
-
 		resp.UserId = userId
 		resp.Version = 1
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		level.Error(s.logger).Log("what", "Exec", "error", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		err = nil
 	}
 
@@ -106,8 +102,8 @@ func (s *accountService) UpdateAccountUser(ctx context.Context, req *pb.UpdateAc
 	resp := &pb.UpdateAccountUserResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_AccountUser SET dtmModified = NOW(), intVersion = ?, chvEmail = ?, chvUserFullName = ?, intUserType = ?
-    WHERE inbUserId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_accountuser SET modified = now(), version = $1, email = $2, user_full_name = $3, user_type = $4
+    WHERE user_id = $5 AND version = $6 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -143,7 +139,7 @@ func (s *accountService) UpdateAccountUserPassword(ctx context.Context, req *pb.
 	resp := &pb.UpdateAccountUserPasswordResponse{}
 	var err error
 
-	sqlstring1 := `SELECT chvPasswordEnc FROM tb_AccountUser WHERE inbUserId = ? AND bitIsDeleted = 0`
+	sqlstring1 := `SELECT password_enc FROM tb_accountuser WHERE user_id = $1 AND is_deleted = false`
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
 		level.Error(s.logger).Log("what", "Prepare", "error", err)
@@ -182,8 +178,8 @@ func (s *accountService) UpdateAccountUserPassword(ctx context.Context, req *pb.
 
 	passwordEnc := string(enc)
 
-	sqlstring := `UPDATE tb_AccountUser SET dtmModified = NOW(), intVersion = ?, chvPasswordEnc = ?
-	WHERE inbUserId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_accountuser SET modified = now(), version = $1, password_enc = $2
+	WHERE user_id = $3 AND version = $4 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -221,8 +217,8 @@ func (s *accountService) DeleteAccountUser(ctx context.Context, req *pb.DeleteAc
 	resp := &pb.DeleteAccountUserResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_AccountUser SET dtmDeleted = NOW(), bitIsDeleted = 1, intVersion = ?
-	WHERE inbUserId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_accountuser SET deleted = now(), is_deleted = true, version = $1
+	WHERE user_id = $2 AND version = $3 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -259,8 +255,8 @@ func (s *accountService) GetAccountUserById(ctx context.Context, req *pb.GetAcco
 	resp := &pb.GetAccountUserByIdResponse{}
 	var err error
 
-	sqlstring := `SELECT inbUserId, dtmCreated, dtmModified, intVersion, inbAccountId, chvEmail, chvUserFullName, intUserType
-	FROM tb_AccountUser where inbUserId = ? AND bitIsDeleted = 0`
+	sqlstring := `SELECT user_id, created, modified, version, account_id, email, user_full_name, user_type
+	FROM tb_accountuser where user_id = $1 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -311,11 +307,11 @@ func (s *accountService) GetAccountUserByEmail(ctx context.Context, req *pb.GetA
 	resp := &pb.GetAccountUserByEmailResponse{}
 	var err error
 
-	sqlstring := `SELECT u.inbUserId, u.dtmCreated, u.dtmModified, u.intVersion, u.inbAccountId, u.chvEmail, u.chvUserFullName, u.intUserType
-	FROM tb_AccountUser AS u 
-	JOIN tb_Account AS a
-	ON u.inbAccountId = a.inbAccountId
-	WHERE a.chvAccountName = ? AND u.ChvEmail = ? AND u.bitIsDeleted = 0 AND a.bitIsDeleted = 0`
+	sqlstring := `SELECT u.user_id, u.created, u.modified, u.version, u.account_id, u.email, u.user_full_name, u.user_type
+	FROM tb_accountuser AS u 
+	JOIN tb_account AS a
+	ON u.account_id = a.account_id
+	WHERE a.account_name = $1 AND u.email = $2 AND u.is_deleted = false AND a.is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -364,11 +360,11 @@ func (s *accountService) GetAccountUsers(ctx context.Context, req *pb.GetAccount
 	resp := &pb.GetAccountUsersResponse{}
 	var err error
 
-	sqlstring := `SELECT u.inbUserId, u.dtmCreated, u.dtmModified, u.intVersion, u.inbAccountId, u.chvEmail, u.chvUserFullName, u.intUserType
-	FROM tb_AccountUser AS u 
-	JOIN tb_Account AS a
-	ON u.inbAccountId = a.inbAccountId
-	WHERE a.chvAccountName = ? AND u.bitIsDeleted = 0 AND a.bitIsDeleted = 0`
+	sqlstring := `SELECT u.user_id, u.created, u.modified, u.version, u.account_id, u.email, u.user_full_name, u.user_type
+	FROM tb_accountuser AS u 
+	JOIN tb_account AS a
+	ON u.account_id = a.account_id
+	WHERE a.account_name = $1 AND u.is_deleted = false AND a.is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {

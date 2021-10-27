@@ -17,9 +17,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-	"github.com/rs/cors"
 	"io"
 	"net"
 	"net/http"
@@ -28,6 +25,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/rs/cors"
 
 	"github.com/gaterace/mservice/pkg/acctauth"
 	"github.com/gaterace/mservice/pkg/acctservice"
@@ -40,7 +41,7 @@ import (
 
 	"database/sql"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -61,9 +62,13 @@ func main() {
 	tls, _ := config.GetBool("tls")
 	port, _ := config.GetInt("port")
 	rest_port, _ := config.GetInt("rest_port")
+
 	db_user, _ := config.Get("db_user")
 	db_pwd, _ := config.Get("db_pwd")
-	db_transport, _ := config.Get("db_transport")
+	db_host, _ := config.Get("db_host")
+	db_name, _ := config.Get("db_name")
+	db_port, _ := config.GetInt("db_port")
+
 	jwt_pub_file, _ := config.Get("jwt_pub_file")
 	jwt_private_file, _ := config.Get("jwt_private_file")
 	lease_minutes, _ := config.GetInt("lease_minutes")
@@ -81,8 +86,6 @@ func main() {
 	logger := log.NewLogfmtLogger(log.NewSyncWriter(logWriter))
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
 
-
-
 	level.Info(logger).Log("log_file", log_file)
 	level.Info(logger).Log("cert_file", cert_file)
 	level.Info(logger).Log("key_file", key_file)
@@ -90,7 +93,9 @@ func main() {
 	level.Info(logger).Log("port", port)
 	level.Info(logger).Log("rest_port", rest_port)
 	level.Info(logger).Log("db_user", db_user)
-	level.Info(logger).Log("db_transport", db_transport)
+	level.Info(logger).Log("db_host", db_host)
+	level.Info(logger).Log("db_name", db_name)
+	level.Info(logger).Log("db_port", db_port)
 	level.Info(logger).Log("jwt_pub_file", jwt_pub_file)
 	level.Info(logger).Log("jwt_private_file", jwt_private_file)
 	level.Info(logger).Log("lease_minutes", lease_minutes)
@@ -122,7 +127,7 @@ func main() {
 	s := grpc.NewServer(opts...)
 	acctService := acctservice.NewAccountService()
 
-	sqlDb, err := SetupDatabaseConnections(db_user, db_pwd, db_transport)
+	sqlDb, err := SetupDatabaseConnections(db_user, db_pwd, db_host, db_name, db_port)
 	if err != nil {
 		level.Error(logger).Log("what", "SetupDatabaseConnections", "error", err)
 		os.Exit(1)
@@ -165,10 +170,10 @@ func main() {
 		if cors_origin != "" {
 			origins := strings.Split(cors_origin, ",")
 			c := cors.New(cors.Options{
-				AllowedOrigins: origins,
+				AllowedOrigins:   origins,
 				AllowCredentials: true,
-				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-				AllowedHeaders: []string{"*"},
+				AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+				AllowedHeaders:   []string{"*"},
 				// Debug: true,
 			})
 			level.Info(logger).Log("msg", "using cors")
@@ -234,13 +239,15 @@ func main() {
 	os.Exit(0)
 }
 
-// helper to set up database connections for acctservice server.
-func SetupDatabaseConnections(db_user string, db_pwd string, db_transport string) (*sql.DB, error) {
+// Set up the database connections for MServiceBlobstore service.
+func SetupDatabaseConnections(db_user string, db_pwd string, db_host string, db_name string, db_port int64) (*sql.DB, error) {
 	var sqlDb *sql.DB
-	endpoint := db_user + ":" + db_pwd + "@" + db_transport + "/mservice"
+
+	dbinfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		db_host, db_port, db_user, db_pwd, db_name)
 
 	var err error
-	sqlDb, err = sql.Open("mysql", endpoint)
+	sqlDb, err = sql.Open("postgres", dbinfo)
 	if err == nil {
 		err = sqlDb.Ping()
 		if err != nil {

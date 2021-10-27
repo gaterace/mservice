@@ -16,12 +16,13 @@ package acctservice
 import (
 	"context"
 	"database/sql"
+
 	"github.com/go-kit/kit/log/level"
 
 	"github.com/gaterace/dml-go/pkg/dml"
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 // create a claim name
@@ -29,9 +30,9 @@ func (s *accountService) CreateClaimName(ctx context.Context, req *pb.CreateClai
 	resp := &pb.CreateClaimNameResponse{}
 	var err error
 
-	sqlstring := `INSERT INTO tb_Claim (
-		dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion, chvClaimName, chvClaimDescription)
-		VALUES(NOW(), NOW(), NOW(), 0, 1, ?, ?)`
+	sqlstring := `INSERT INTO tb_claim (
+		created, modified, deleted, is_deleted, version, claim_name, claim_description)
+		VALUES(now(), now(), now(), false, 1, $1, $2) RETURNING claim_name_id`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -43,21 +44,17 @@ func (s *accountService) CreateClaimName(ctx context.Context, req *pb.CreateClai
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetClaimName(), req.GetClaimDescription())
-	if err == nil {
-		claimNameId, err := res.LastInsertId()
-		if err != nil {
-			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
-		} else {
-			level.Debug(s.logger).Log("claimNameId", claimNameId)
-		}
+	var claimNameId int64
 
+	err = stmt.QueryRow(req.GetClaimName(), req.GetClaimDescription()).Scan(&claimNameId)
+
+	if err == nil {
 		resp.ClaimNameId = claimNameId
 		resp.Version = 1
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		level.Error(s.logger).Log("what", "Exec", "error", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		err = nil
 	}
 
@@ -69,8 +66,8 @@ func (s *accountService) UpdateClaimName(ctx context.Context, req *pb.UpdateClai
 	resp := &pb.UpdateClaimNameResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_Claim SET dtmModified = NOW(), intVersion = ?, chvClaimName = ?, chvClaimDescription = ?
-	WHERE inbClaimNameId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_claim SET modified = now(), version = $1, claim_name = $2, claim_description = $3
+	WHERE claim_name_id = $4 AND version = $5 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -107,8 +104,8 @@ func (s *accountService) DeleteClaimName(ctx context.Context, req *pb.DeleteClai
 	resp := &pb.DeleteClaimNameResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_Claim SET dtmDeleted = NOW(), bitIsDeleted = 1,  intVersion = ?
-	WHERE inbClaimNameId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_claim SET deleted = now(), is_deleted = true,  version = $1
+	WHERE claim_name_id = $2 AND version = $3 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -145,8 +142,8 @@ func (s *accountService) GetClaimNames(ctx context.Context, req *pb.GetClaimName
 	resp := &pb.GetClaimNamesResponse{}
 	var err error
 
-	sqlstring := `SELECT inbClaimNameId, dtmCreated, dtmModified, intVersion, chvClaimName, chvClaimDescription
-	FROM tb_Claim WHERE bitIsDeleted = 0`
+	sqlstring := `SELECT claim_name_id, created, modified, version, claim_name, claim_description
+	FROM tb_claim WHERE is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -193,7 +190,7 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 	resp := &pb.CreateClaimValueResponse{}
 	var err error
 
-	sqlstring1 := `SELECT inbClaimNameId FROM tb_Claim WHERE inbClaimNameId = ? AND bitIsDeleted = 0`
+	sqlstring1 := `SELECT claim_name_id FROM tb_claim WHERE claim_name_id = $1 AND is_deleted = false`
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
 		level.Error(s.logger).Log("what", "Prepare", "error", err)
@@ -215,8 +212,8 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 		return resp, nil
 	}
 
-	sqlstring := `INSERT INTO tb_ClaimValue (dtmCreated, dtmModified, dtmDeleted, bitIsDeleted, intVersion,
-	inbClaimNameId, chvClaimVal, chvClaimValueDescription) VALUES (NOW(), NOW(), NOW(), 0, 1, ?, ?, ?)`
+	sqlstring := `INSERT INTO tb_claimvalue (created, modified, deleted, is_deleted, version,
+	claim_name_id, claim_val, claim_value_description) VALUES (now(), now(), now(), false, 1, $1, $2, $3) RETURNING claim_value_id`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -228,23 +225,17 @@ func (s *accountService) CreateClaimValue(ctx context.Context, req *pb.CreateCla
 
 	defer stmt.Close()
 
-	res, err := stmt.Exec(req.GetClaimNameId(), req.GetClaimVal(), req.GetClaimValueDescription())
+	var claimValueId int64
+
+	err = stmt.QueryRow(req.GetClaimNameId(), req.GetClaimVal(), req.GetClaimValueDescription()).Scan(&claimValueId)
 
 	if err == nil {
-		claimValueId, err := res.LastInsertId()
-		if err != nil {
-			level.Error(s.logger).Log("what", "LastInsertId", "error", err)
-		} else {
-			level.Debug(s.logger).Log("claimValueId", claimValueId)
-		}
-
-		resp.Version = 1
 		resp.ClaimValueId = claimValueId
-
+		resp.Version = 1
 	} else {
 		resp.ErrorCode = 501
 		resp.ErrorMessage = err.Error()
-		level.Error(s.logger).Log("what", "Exec", "error", err)
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
 		err = nil
 	}
 
@@ -256,8 +247,8 @@ func (s *accountService) UpdateClaimValue(ctx context.Context, req *pb.UpdateCla
 	resp := &pb.UpdateClaimValueResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_ClaimValue SET dtmModified = NOW(), intVersion = ?, chvClaimVal = ?, chvClaimValueDescription = ?
-	WHERE inbClaimValueId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_claimvalue SET modified = now(), version = $1, claim_val = $2, claim_value_description = $3
+	WHERE claim_value_id = $4 AND version = $5 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -294,8 +285,8 @@ func (s *accountService) DeleteClaimValue(ctx context.Context, req *pb.DeleteCla
 	resp := &pb.DeleteClaimValueResponse{}
 	var err error
 
-	sqlstring := `UPDATE tb_ClaimValue SET dtmDeleted = NOW(), bitIsDeleted = 1, intVersion = ?
-	WHERE  inbClaimValueId = ? AND intVersion = ? AND bitIsDeleted = 0`
+	sqlstring := `UPDATE tb_claimvalue SET deleted = now(), is_deleted = true, version = $1
+	WHERE  claim_value_id = $2 AND version = $3 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -331,14 +322,14 @@ func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaim
 	resp := &pb.GetClaimValueByIdResponse{}
 	var err error
 
-	sqlstring := `SELECT inbClaimValueId, dtmCreated, dtmModified, intVersion, inbClaimNameId, chvClaimVal, chvClaimValueDescription
-	FROM  tb_ClaimValue WHERE inbClaimValueId = ? AND bitIsDeleted = 0`
+	sqlstring := `SELECT claim_value_id, created, modified, version, claim_name_id, claim_val, claim_value_description
+	FROM  tb_claimvalue WHERE claim_value_id = $1 AND is_deleted = false`
 
-	// sqlstring := `SELECT cv.inbClaimValueId, cv.dtmCreated, cn.dtmModified, cv.intVersion, cv.inbClaimNameId, cv.chvClaimVal, cv.chvClaimValueDescription
-	// FROM  tb_ClaimValue AS cv
-	// JOIN tb_Claim AS cn
-	// ON cv.inbClaimNameId = cn.inbClaimNameId
-	// WHERE cv.inbClaimValueId = ? AND cv.bitIsDeleted = 0`
+	// sqlstring := `SELECT cv.claim_value_id, cv.created, cn.modified, cv.version, cv.claim_name_id, cv.claim_val, cv.claim_value_description
+	// FROM  tb_claimvalue AS cv
+	// JOIN tb_claim AS cn
+	// ON cv.claim_name_id = cn.claim_name_id
+	// WHERE cv.claim_value_id = ? AND cv.is_deleted = 0`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -373,8 +364,8 @@ func (s *accountService) GetClaimValueById(ctx context.Context, req *pb.GetClaim
 	claimVal.Modified = dml.DateTimeFromString(modified)
 
 	// now get the associated claim
-	sqlstring1 := `SELECT inbClaimNameId, dtmCreated, dtmModified, intVersion, chvClaimName, chvClaimDescription
-	FROM tb_Claim WHERE bitIsDeleted = 0 AND inbClaimNameId = ?`
+	sqlstring1 := `SELECT claim_name_id, created, modified, version, claim_name, claim_description
+	FROM tb_claim WHERE is_deleted = false AND claim_name_id = $1`
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
@@ -416,8 +407,8 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 	resp := &pb.GetClaimValuesByNameIdResponse{}
 	var err error
 
-	sqlstring1 := `SELECT inbClaimNameId, dtmCreated, dtmModified, intVersion, chvClaimName, chvClaimDescription
-	FROM tb_Claim WHERE bitIsDeleted = 0 AND inbClaimNameId = ?`
+	sqlstring1 := `SELECT claim_name_id, created, modified, version, claim_name, claim_description
+	FROM tb_claim WHERE is_deleted = false AND claim_name_id = $1`
 
 	stmt1, err := s.db.Prepare(sqlstring1)
 	if err != nil {
@@ -450,8 +441,8 @@ func (s *accountService) GetClaimValuesByNameId(ctx context.Context, req *pb.Get
 	claim.Created = dml.DateTimeFromString(created)
 	claim.Modified = dml.DateTimeFromString(modified)
 
-	sqlstring := `SELECT inbClaimValueId, dtmCreated, dtmModified, intVersion, inbClaimNameId, chvClaimVal, chvClaimValueDescription
-	FROM  tb_ClaimValue WHERE inbClaimNameId = ? AND bitIsDeleted = 0`
+	sqlstring := `SELECT claim_value_id, created, modified, version, claim_name_id, claim_val, claim_value_description
+	FROM  tb_claimvalue WHERE claim_name_id = $1 AND is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
@@ -501,8 +492,8 @@ func (s *accountService) GetClaimValues(ctx context.Context, req *pb.GetClaimVal
 	resp := &pb.GetClaimValuesResponse{}
 	var err error
 
-	sqlstring := `SELECT inbClaimValueId, dtmCreated, dtmModified, intVersion, inbClaimNameId, chvClaimVal, chvClaimValueDescription
-	FROM  tb_ClaimValue WHERE bitIsDeleted = 0`
+	sqlstring := `SELECT claim_value_id, created, modified, version, claim_name_id, claim_val, claim_value_description
+	FROM  tb_claimvalue WHERE is_deleted = false`
 
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {

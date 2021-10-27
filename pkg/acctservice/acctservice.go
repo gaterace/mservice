@@ -32,7 +32,7 @@ import (
 
 	"database/sql"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 
 	pb "github.com/gaterace/mservice/pkg/mserviceaccount"
 )
@@ -105,11 +105,11 @@ func (s *accountService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.L
 	resp := &pb.LoginResponse{}
 	var err error
 
-	sqlstring := `SELECT au.inbUserId, au.chvPasswordEnc, ac.inbAccountId 
-	FROM tb_AccountUser AS au
-	JOIN tb_Account AS ac
-	ON au.inbAccountId = ac.inbAccountId
-	WHERE ac.chvAccountName = ? AND au.chvEmail = ? AND au.bitIsDeleted = 0 AND ac.bitIsDeleted = 0`
+	sqlstring := `SELECT au.user_id, au.password_enc, ac.account_id 
+	FROM tb_accountuser AS au
+	JOIN tb_account AS ac
+	ON au.account_id = ac.account_id
+	WHERE ac.account_name = $1 AND au.email = $2 AND au.is_deleted = false AND ac.is_deleted = false`
 	stmt, err := s.db.Prepare(sqlstring)
 	if err != nil {
 		level.Error(s.logger).Log("what", "Prepare", "error", err)
