@@ -1,4 +1,4 @@
-// Copyright 2019 Demian Harvill
+// Copyright 2019-2022 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -80,8 +80,6 @@ func main() {
 	}
 	logger := log.NewLogfmtLogger(log.NewSyncWriter(logWriter))
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC, "caller", log.DefaultCaller)
-
-
 
 	level.Info(logger).Log("log_file", log_file)
 	level.Info(logger).Log("cert_file", cert_file)
@@ -165,10 +163,10 @@ func main() {
 		if cors_origin != "" {
 			origins := strings.Split(cors_origin, ",")
 			c := cors.New(cors.Options{
-				AllowedOrigins: origins,
+				AllowedOrigins:   origins,
 				AllowCredentials: true,
-				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-				AllowedHeaders: []string{"*"},
+				AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+				AllowedHeaders:   []string{"*"},
 				// Debug: true,
 			})
 			level.Info(logger).Log("msg", "using cors")
