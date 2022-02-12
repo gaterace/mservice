@@ -1,4 +1,4 @@
-// Copyright 2019-2020 Demian Harvill
+// Copyright 2019-2022 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -29,7 +29,7 @@ import (
 
 type muxHandler struct {
 	auth *acctauth.AccountAuth
-	rtr *mux.Router
+	rtr  *mux.Router
 }
 
 // Create aa new muxHandler struct
@@ -104,7 +104,7 @@ func (mh *muxHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	var ctx context.Context
 
-	resp, err  := mh.auth.Login(ctx, &req)
+	resp, err := mh.auth.Login(ctx, &req)
 	if err == nil {
 		writeResponse(resp, err, int(resp.GetErrorCode()), w)
 		return
@@ -396,7 +396,7 @@ func (mh *muxHandler) UserByEmailHandler(w http.ResponseWriter, r *http.Request)
 	email := vars["email"]
 	accountName := vars["account"]
 	req := pb.GetAccountUserByEmailRequest{}
-	req.AccountName =accountName
+	req.AccountName = accountName
 	req.Email = email
 
 	ctx := getTokenContext(r)

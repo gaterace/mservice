@@ -1,4 +1,4 @@
-// Copyright 2019-2020 Demian Harvill
+// Copyright 2019-2022 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -22,12 +23,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/user"
 	"strconv"
 	"syscall"
-	"net/http"
-	"bytes"
 	"time"
 
 	flag "github.com/juju/gnuflag"
@@ -98,7 +98,6 @@ func init() {
 
 	flag.StringVar(&role_name, "role_name", "", "descriptive name for role")
 	flag.Int64Var(&role_id, "role_id", 0, "unique identifier for an MService account role")
-
 
 }
 
@@ -589,7 +588,6 @@ func main() {
 	}
 	// fmt.Printf("address: %s\n", address)
 
-
 	savedToken := ""
 
 	data, err := ioutil.ReadFile(tokenFilename)
@@ -597,8 +595,6 @@ func main() {
 	if err == nil {
 		savedToken = string(data)
 	}
-
-
 
 	bearer := "Bearer " + savedToken
 	// fmt.Println(bearer)
@@ -631,9 +627,8 @@ func main() {
 		tr := &http.Transport{TLSClientConfig: config}
 		client = &http.Client{
 			Transport: tr,
-			Timeout: time.Second * 10,
+			Timeout:   time.Second * 10,
 		}
-
 
 	} else {
 		client = &http.Client{
@@ -913,7 +908,6 @@ func main() {
 		url := fmt.Sprintf("%s/api/role/claim/%d/%d", serverAddr, role_id, claim_value_id)
 		doMuxRequest(url, bearer, client, "DELETE", nil)
 
-
 	case "get_server_version":
 		url := fmt.Sprintf("%s/api/server/version", serverAddr)
 		doMuxRequest(url, bearer, client, "GET", nil)
@@ -934,7 +928,7 @@ func doMuxRequest(url string, bearer string, client *http.Client, verb string, b
 	}
 	resp, err := client.Do(httpReq)
 	if err == nil {
-		respBody, _ :=  ioutil.ReadAll(resp.Body)
+		respBody, _ := ioutil.ReadAll(resp.Body)
 		fmt.Println(string(respBody))
 	} else {
 		fmt.Printf("err: %s\n", err)
