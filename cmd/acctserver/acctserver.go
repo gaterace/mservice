@@ -239,7 +239,7 @@ func main() {
 	os.Exit(0)
 }
 
-// Set up the database connections for MServiceBlobstore service.
+// Set up the database connections for MService service.
 func SetupDatabaseConnections(db_user string, db_pwd string, db_host string, db_name string, db_port int64) (*sql.DB, error) {
 	var sqlDb *sql.DB
 
