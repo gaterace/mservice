@@ -23,6 +23,7 @@ cmd/acctclient/acctclient
 cmd/acctclient/*.config
 cmd/acctserver/acctserver
 cmd/acctserver/acctserver_arm
+cmd/acctserver/acctserver_arm64
 cmd/acctserver/conf.yaml
 cmd/acctserver/log.txt
 cmd/acctservermux/acctservermux
