@@ -139,7 +139,32 @@ To build the server:
 **go build**
 
 The acctserver executable can then be run.  It expects a YAML configuration file in the same directory named **conf.yaml** .  The location
-of the configuration file can be changed with an environment variable,**ACCT_CONF** .
+of the configuration file can be changed with an environment variable,**ACCT_CONF** . All configuration can optionally be set
+using command line flags or through environment variables (with ACCT_ prefix).
+
+```
+acctserver -h
+
+Usage:
+  acctserver [flags]
+
+Flags:
+      --cert_file string          Path to certificate file.
+      --conf string               Path to inventory config file. (default "conf.yaml")
+      --cors_origin string        Cross origin sites for REST.
+      --db_pwd string             Database user password.
+      --db_transport string       Database transport string.
+      --db_user string            Database user name.
+  -h, --help                      help for acctserver
+      --jwt_private_file string   Path to JWT private key.
+      --jwt_pub_file string       Path to JWT public certificate.
+      --key_file string           Path to certificate key file.
+      --lease_minutes int         JWT lease time. (default 30)
+      --log_file string           Path to log file.
+      --port int                  Port for RPC connections (default 50051)
+      --rest_port int             Port for REST connections
+      --tls                       Use tls for connection.
+```
 
 A commented sample configuration file is at **cmd/acctserver/conf.sample** . The locations of the various certificates and 
 keys need to be provided, as well as the database user and password and the MySql connection string.

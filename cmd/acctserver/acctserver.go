@@ -17,9 +17,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-	"github.com/rs/cors"
 	"io"
 	"net"
 	"net/http"
@@ -29,6 +26,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/rs/cors"
+
 	"github.com/gaterace/mservice/pkg/acctauth"
 	"github.com/gaterace/mservice/pkg/acctservice"
 	"github.com/gaterace/mservice/pkg/muxhandler"
@@ -36,38 +37,130 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/kylelemons/go-gypsy/yaml"
-
 	"database/sql"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
-	configPath := os.Getenv("ACCT_CONF")
-	if configPath == "" {
-		configPath = "conf.yaml"
+	cli := &cli{}
+
+	cmd := &cobra.Command{
+		Use:     "acctserver",
+		PreRunE: cli.setupConfig,
+		RunE:    cli.run,
 	}
 
-	config, err := yaml.ReadFile(configPath)
-	if err != nil {
-		fmt.Printf("configuration not found: " + configPath)
+	if err := setupFlags(cmd); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+
+	}
+
+	if err := cmd.Execute(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	log_file, _ := config.Get("log_file")
-	cert_file, _ := config.Get("cert_file")
-	key_file, _ := config.Get("key_file")
-	tls, _ := config.GetBool("tls")
-	port, _ := config.GetInt("port")
-	rest_port, _ := config.GetInt("rest_port")
-	db_user, _ := config.Get("db_user")
-	db_pwd, _ := config.Get("db_pwd")
-	db_transport, _ := config.Get("db_transport")
-	jwt_pub_file, _ := config.Get("jwt_pub_file")
-	jwt_private_file, _ := config.Get("jwt_private_file")
-	lease_minutes, _ := config.GetInt("lease_minutes")
-	cors_origin, _ := config.Get("cors_origin")
+}
+
+type cli struct {
+	cfg cfg
+}
+
+type cfg struct {
+	AcctConf       string
+	LogFile        string
+	CertFile       string
+	KeyFile        string
+	Tls            bool
+	Port           int
+	RestPort       int
+	DbUser         string
+	DbPwd          string
+	DbTransport    string
+	JwtPubFile     string
+	JwtPrivateFile string
+	LeaseMinutes   int
+	CorsOrigin     string
+}
+
+func setupFlags(cmd *cobra.Command) error {
+
+	cmd.Flags().String("conf", "conf.yaml", "Path to inventory config file.")
+	cmd.Flags().String("log_file", "", "Path to log file.")
+	cmd.Flags().String("cert_file", "", "Path to certificate file.")
+	cmd.Flags().String("key_file", "", "Path to certificate key file.")
+	cmd.Flags().Bool("tls", false, "Use tls for connection.")
+	cmd.Flags().Int("port", 50051, "Port for RPC connections")
+	cmd.Flags().Int("rest_port", 0, "Port for REST connections")
+	cmd.Flags().String("db_user", "", "Database user name.")
+	cmd.Flags().String("db_pwd", "", "Database user password.")
+	cmd.Flags().String("db_transport", "", "Database transport string.")
+	cmd.Flags().String("jwt_pub_file", "", "Path to JWT public certificate.")
+	cmd.Flags().String("jwt_private_file", "", "Path to JWT private key.")
+	cmd.Flags().Int("lease_minutes", 30, "JWT lease time.")
+
+	cmd.Flags().String("cors_origin", "", "Cross origin sites for REST.")
+
+	return viper.BindPFlags(cmd.Flags())
+}
+
+func (c *cli) setupConfig(cmd *cobra.Command, args []string) error {
+	var err error
+
+	viper.SetEnvPrefix("acct")
+
+	viper.AutomaticEnv()
+
+	configFile := viper.GetString("conf")
+
+	viper.SetConfigFile(configFile)
+
+	if err = viper.ReadInConfig(); err != nil {
+		// it's ok if config file doesn't exist
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return err
+		}
+	}
+
+	c.cfg.LogFile = viper.GetString("log_file")
+	c.cfg.CertFile = viper.GetString("cert_file")
+	c.cfg.KeyFile = viper.GetString("key_file")
+	c.cfg.Tls = viper.GetBool("tls")
+	c.cfg.Port = viper.GetInt("port")
+	c.cfg.RestPort = viper.GetInt("rest-port")
+	c.cfg.DbUser = viper.GetString("db_user")
+	c.cfg.DbPwd = viper.GetString("db_pwd")
+	c.cfg.DbTransport = viper.GetString("db_transport")
+	c.cfg.JwtPubFile = viper.GetString("jwt_pub_file")
+	c.cfg.JwtPrivateFile = viper.GetString("jwt_private_file")
+	c.cfg.LeaseMinutes = viper.GetInt("lease_minutes")
+
+	c.cfg.CorsOrigin = viper.GetString("cors_origin")
+
+	return nil
+}
+
+func (c *cli) run(cmd *cobra.Command, args []string) error {
+	var err error
+
+	log_file := c.cfg.LogFile
+	cert_file := c.cfg.CertFile
+	key_file := c.cfg.KeyFile
+	tls := c.cfg.Tls
+	port := c.cfg.Port
+	rest_port := c.cfg.RestPort
+	db_user := c.cfg.DbUser
+	db_pwd := c.cfg.DbPwd
+	db_transport := c.cfg.DbTransport
+	jwt_pub_file := c.cfg.JwtPubFile
+	jwt_private_file := c.cfg.JwtPrivateFile
+	lease_minutes := c.cfg.LeaseMinutes
+	cors_origin := c.cfg.CorsOrigin
 
 	var logWriter io.Writer
 
@@ -93,10 +186,6 @@ func main() {
 	level.Info(logger).Log("jwt_private_file", jwt_private_file)
 	level.Info(logger).Log("lease_minutes", lease_minutes)
 	level.Info(logger).Log("cors_origin", cors_origin)
-
-	if port == 0 {
-		port = 50051
-	}
 
 	listen_port := ":" + strconv.Itoa(int(port))
 	// fmt.Println(listen_port)
@@ -205,13 +294,13 @@ func main() {
 		}
 	}()
 
-	c := make(chan os.Signal, 1)
+	ch := make(chan os.Signal, 1)
 	// We'll accept graceful shutdowns when quit via SIGINT (Ctrl+C)
 	// SIGKILL, SIGQUIT or SIGTERM (Ctrl+/) will not be caught.
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(ch, os.Interrupt)
 
 	// Block until we receive our signal.
-	<-c
+	<-ch
 
 	s.GracefulStop()
 	level.Info(logger).Log("msg", "shutting down grpc server")
@@ -229,7 +318,7 @@ func main() {
 		level.Info(logger).Log("msg", "shutting down http server")
 	}
 
-	os.Exit(0)
+	return err
 }
 
 // helper to set up database connections for acctservice server.
