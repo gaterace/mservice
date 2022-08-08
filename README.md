@@ -103,7 +103,7 @@ The client configuration needs to know the location of the CA cert_file if using
 
 ## Database
 
-There are MySql scripts in the **sql/** directory that create the mservice database (mservice.sql) as well as all
+There are Postresql scripts in the **sql/** directory that create the mservice database (mservice.sql) as well as all
 the required tables (tb_*.sql).  These need to be run on the MySql server to create the database and associated tables.
 A MySql user with appropriate permissions needs to be created for the acctserver to use the mservice database.
 
@@ -115,7 +115,7 @@ used to modify the initial settings.
 
 ## Data Model
 
-The persistent data is managed by a MySQL / MariaDB database associated with this microservice.
+The persistent data is managed by a Postgresql database associated with this microservice.
 
 **Claims** and associated **Claim Values** are used to create key/value pairs in the JWT for authorization. For example, the
 MService miscroservice uses the claim **acctmgt** for itself, an example claim value is **acctrw** for read/write access within 
@@ -139,10 +139,38 @@ To build the server:
 **go build**
 
 The acctserver executable can then be run.  It expects a YAML configuration file in the same directory named **conf.yaml** .  The location
-of the configuration file can be changed with an environment variable,**ACCT_CONF** .
+of the configuration file can be changed with an environment variable,**ACCT_CONF** . The configuration may also
+be specified using command line flags or through environment variables (prefixed with ACCT_).
+
+```
+acctserver -h
+
+Usage:
+  acctserver [flags]
+
+Flags:
+      --cert_file string          Path to certificate file.
+      --conf string               Path to inventory config file. (default "conf.yaml")
+      --cors_origin string        Cross origin sites for REST.
+      --db_host string            Database host.
+      --db_name string            Database name.
+      --db_port int               Port for database connections
+      --db_pwd string             Database user password.
+      --db_user string            Database user name.
+  -h, --help                      help for acctserver
+      --jwt_private_file string   Path to JWT private key.
+      --jwt_pub_file string       Path to JWT public certificate.
+      --key_file string           Path to certificate key file.
+      --lease_minutes int         JWT lease time. (default 30)
+      --log_file string           Path to log file.
+      --port int                  Port for RPC connections (default 50051)
+      --rest_port int             Port for REST connections
+      --tls                       Use tls for connection.
+```
 
 A commented sample configuration file is at **cmd/acctserver/conf.sample** . The locations of the various certificates and 
-keys need to be provided, as well as the database user and password and the MySql connection string.
+keys need to be provided, as well as the database user and password and the Postgresq1 connection details (db_host, 
+db_name, db_port).
 
 ## Go Client
 
