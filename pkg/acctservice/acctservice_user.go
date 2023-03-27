@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Demian Harvill
+// Copyright 2019-2023 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -171,6 +171,55 @@ func (s *accountService) UpdateAccountUserPassword(ctx context.Context, req *pb.
 		resp.ErrorMessage = "old password invalid"
 		return resp, nil
 	}
+
+	enc, err := bcrypt.GenerateFromPassword([]byte(req.GetPasswordEnc()), 12)
+	if err != nil {
+		resp.ErrorCode = 502
+		resp.ErrorMessage = "unable to bcrypt password"
+		level.Error(s.logger).Log("what", "GenerateFromPassword", "error", err)
+		return resp, nil
+	}
+
+	passwordEnc := string(enc)
+
+	sqlstring := `UPDATE tb_AccountUser SET dtmModified = NOW(), intVersion = ?, chvPasswordEnc = ?
+	WHERE inbUserId = ? AND intVersion = ? AND bitIsDeleted = 0`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	res, err := stmt.Exec(req.GetVersion()+1, passwordEnc, req.GetUserId(), req.GetVersion())
+
+	if err == nil {
+		rowsAffected, _ := res.RowsAffected()
+		if rowsAffected == 1 {
+			resp.Version = req.GetVersion() + 1
+		} else {
+			level.Error(s.logger).Log("what", "Exec", "error", err)
+			resp.ErrorCode = 404
+			resp.ErrorMessage = "not found"
+		}
+	} else {
+		resp.ErrorCode = 501
+		resp.ErrorMessage = err.Error()
+		level.Error(s.logger).Log("what", "Exec", "error", err)
+		err = nil
+	}
+
+	return resp, err
+}
+
+// reset an existing account user password without knowing old password
+func (s *accountService) ResetAccountUserPassword(ctx context.Context, req *pb.ResetAccountUserPasswordRequest) (*pb.ResetAccountUserPasswordResponse, error) {
+	resp := &pb.ResetAccountUserPasswordResponse{}
+	var err error
 
 	enc, err := bcrypt.GenerateFromPassword([]byte(req.GetPasswordEnc()), 12)
 	if err != nil {

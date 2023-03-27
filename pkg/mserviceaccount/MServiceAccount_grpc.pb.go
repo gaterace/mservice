@@ -38,6 +38,8 @@ type MServiceAccountClient interface {
 	UpdateAccountUser(ctx context.Context, in *UpdateAccountUserRequest, opts ...grpc.CallOption) (*UpdateAccountUserResponse, error)
 	// update an existing account user password
 	UpdateAccountUserPassword(ctx context.Context, in *UpdateAccountUserPasswordRequest, opts ...grpc.CallOption) (*UpdateAccountUserPasswordResponse, error)
+	// reset an existing account user password without knowing old password
+	ResetAccountUserPassword(ctx context.Context, in *ResetAccountUserPasswordRequest, opts ...grpc.CallOption) (*ResetAccountUserPasswordResponse, error)
 	// delete an existing account user
 	DeleteAccountUser(ctx context.Context, in *DeleteAccountUserRequest, opts ...grpc.CallOption) (*DeleteAccountUserResponse, error)
 	// get an account user by id
@@ -180,6 +182,15 @@ func (c *mServiceAccountClient) UpdateAccountUser(ctx context.Context, in *Updat
 func (c *mServiceAccountClient) UpdateAccountUserPassword(ctx context.Context, in *UpdateAccountUserPasswordRequest, opts ...grpc.CallOption) (*UpdateAccountUserPasswordResponse, error) {
 	out := new(UpdateAccountUserPasswordResponse)
 	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/update_account_user_password", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *mServiceAccountClient) ResetAccountUserPassword(ctx context.Context, in *ResetAccountUserPasswordRequest, opts ...grpc.CallOption) (*ResetAccountUserPasswordResponse, error) {
+	out := new(ResetAccountUserPasswordResponse)
+	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/reset_account_user_password", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -426,6 +437,8 @@ type MServiceAccountServer interface {
 	UpdateAccountUser(context.Context, *UpdateAccountUserRequest) (*UpdateAccountUserResponse, error)
 	// update an existing account user password
 	UpdateAccountUserPassword(context.Context, *UpdateAccountUserPasswordRequest) (*UpdateAccountUserPasswordResponse, error)
+	// reset an existing account user password without knowing old password
+	ResetAccountUserPassword(context.Context, *ResetAccountUserPasswordRequest) (*ResetAccountUserPasswordResponse, error)
 	// delete an existing account user
 	DeleteAccountUser(context.Context, *DeleteAccountUserRequest) (*DeleteAccountUserResponse, error)
 	// get an account user by id
@@ -510,6 +523,9 @@ func (UnimplementedMServiceAccountServer) UpdateAccountUser(context.Context, *Up
 }
 func (UnimplementedMServiceAccountServer) UpdateAccountUserPassword(context.Context, *UpdateAccountUserPasswordRequest) (*UpdateAccountUserPasswordResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateAccountUserPassword not implemented")
+}
+func (UnimplementedMServiceAccountServer) ResetAccountUserPassword(context.Context, *ResetAccountUserPasswordRequest) (*ResetAccountUserPasswordResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetAccountUserPassword not implemented")
 }
 func (UnimplementedMServiceAccountServer) DeleteAccountUser(context.Context, *DeleteAccountUserRequest) (*DeleteAccountUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteAccountUser not implemented")
@@ -772,6 +788,24 @@ func _MServiceAccount_UpdateAccountUserPassword_Handler(srv interface{}, ctx con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MServiceAccountServer).UpdateAccountUserPassword(ctx, req.(*UpdateAccountUserPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MServiceAccount_ResetAccountUserPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetAccountUserPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MServiceAccountServer).ResetAccountUserPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.gaterace.mservice.account.MServiceAccount/reset_account_user_password",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MServiceAccountServer).ResetAccountUserPassword(ctx, req.(*ResetAccountUserPasswordRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1254,6 +1288,10 @@ var MServiceAccount_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "update_account_user_password",
 			Handler:    _MServiceAccount_UpdateAccountUserPassword_Handler,
+		},
+		{
+			MethodName: "reset_account_user_password",
+			Handler:    _MServiceAccount_ResetAccountUserPassword_Handler,
 		},
 		{
 			MethodName: "delete_account_user",

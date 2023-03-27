@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Demian Harvill
+// Copyright 2019-2023 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -160,6 +160,7 @@ func main() {
 		fmt.Printf("    %s update_account_user --user_id <user_id> [-e <email>] [--user_full_name <user_full_name>]\n", prog)
 		fmt.Println("          [--user_type <user_type>]")
 		fmt.Printf("    %s update_account_user_password --user_id <user_id> --password_old <password_old> --password <password>\n", prog)
+		fmt.Printf("    %s reset_account_user_password --user_id <user_id> --password <password>\n", prog)
 		fmt.Printf("    %s delete_account_user --user_id <user_id>\n", prog)
 		fmt.Printf("    %s get_account_user_by_id --user_id <user_id>\n", prog)
 		fmt.Printf("    %s get_account_user_by_email [-a <account>] -e <email>\n", prog)
@@ -309,6 +310,15 @@ func main() {
 		}
 		if password_old == "" {
 			fmt.Println("password_old parameter missing")
+			validParams = false
+		}
+		if password == "" {
+			fmt.Println("password parameter missing")
+			validParams = false
+		}
+	case "reset_account_user_password":
+		if user_id == 0 {
+			fmt.Println("user_id parameter missing")
 			validParams = false
 		}
 		if password == "" {
@@ -803,6 +813,34 @@ func main() {
 				req.PasswordOld = password_old
 				req.PasswordEnc = password
 				resp, err := client.UpdateAccountUserPassword(mctx, &req)
+				if err == nil {
+					jtext, err := json.MarshalIndent(resp, "", "  ")
+					if err == nil {
+						fmt.Println(string(jtext))
+					}
+				}
+			} else {
+				jtext, err := json.MarshalIndent(resp1, "", "  ")
+				if err == nil {
+					fmt.Println(string(jtext))
+				}
+			}
+		}
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+
+	case "reset_account_user_password":
+		req1 := pb.GetAccountUserByIdRequest{}
+		req1.UserId = user_id
+		resp1, err := client.GetAccountUserById(mctx, &req1)
+		if err == nil {
+			if resp1.GetErrorCode() == 0 {
+				req := pb.ResetAccountUserPasswordRequest{}
+				req.UserId = user_id
+				req.Version = resp1.GetAccountUser().GetVersion()
+				req.PasswordEnc = password
+				resp, err := client.ResetAccountUserPassword(mctx, &req)
 				if err == nil {
 					jtext, err := json.MarshalIndent(resp, "", "  ")
 					if err == nil {

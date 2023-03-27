@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Demian Harvill
+// Copyright 2019-2023 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -536,6 +536,32 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
 		"errcode", resp.GetErrorCode(), "duration", duration)
 
 	return resp, err
+}
+
+// reset an existing account user password without knowing old password
+func (s *AccountAuth) ResetAccountUserPassword(ctx context.Context, req *pb.ResetAccountUserPasswordRequest) (*pb.ResetAccountUserPasswordResponse, error) {
+
+	start := time.Now().UnixNano()
+	resp := &pb.ResetAccountUserPasswordResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "super" {
+			// only super role can reset password
+			resp, err = s.acctService.ResetAccountUserPassword(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "ResetAccountUserPassword",
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+
 }
 
 // delete an existing account user.
