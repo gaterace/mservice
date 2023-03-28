@@ -629,6 +629,7 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 		var ok bool
 		var postCheckAccount bool
 
+		postCheckAccount = false
 		if acctmgt == "super" {
 			ok = true
 		} else if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
@@ -640,11 +641,15 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 
 		if ok {
 			resp, err = s.acctService.GetAccountUserById(ctx, req)
-
-			if postCheckAccount && (resp.GetAccountUser() == nil) || (resp.GetAccountUser().GetAccountId() != aid) {
-				resp.ErrorCode = 401
-				resp.ErrorMessage = "not authorized"
-				resp.AccountUser = nil
+			
+			if postCheckAccount {
+				if resp.ErrorCode == 0 {
+					if resp.GetAccountUser().GetAccountId() != aid {
+						resp.ErrorCode = 401
+						resp.ErrorMessage = "not authorized"
+						//	resp.AccountUser = nil
+					}
+				}
 			}
 		}
 	} else {
