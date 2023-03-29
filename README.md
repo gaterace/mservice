@@ -5,7 +5,7 @@ Copyright 2019-2023 Demian Harvill
 ## Overview
 
 MService is a microservice for authentication and authorization in support of this and other microservices.
-It is written the language Go, and uses [gRPC](https://grpc.io) to define and implement it's application programming interface (API).
+It is written in the language Go, and uses [gRPC](https://grpc.io) to define and implement it's application programming interface (API).
 A successful invocation of the **login** api returns a JSON Web Token (JWT) that can be used with this and other
 microservices to gain access to methods in those microservices.
 
@@ -14,6 +14,11 @@ RSA private key (known only to the MService microservice), but can be verified b
 The JWT is passed to microservices using the gRPC context. The lifetime of the JWT is configurable.
 
 As of version v0.9.2, the acctserver can optionally support HTTP Rest requests on a separate port. 
+
+As of version v0.9.5, the authorization for this service (the **acctmgt** claim) has been tightened; the goal is to make each 
+account isolated from each other. Therefore super user authorization (an account user within the master account with admin
+acctmgt claim value) is required to create new accounts and work outside of the master account. See the **Claims and Roles** section later 
+in this document.
 
 ## Usage 
 
@@ -25,12 +30,10 @@ can be used instead):
 Login for the user, creating a JWT if successful. The account (-a master ) can be omitted if it is specified 
 in the client configuration file. The user is prompted for the password in this case.
 
-**acctclient create_account -a master --account_long_name 'example.com'  --account_type 1  
-          --address1 '123 Main Street' --city Anytown --state CO
-          --postal_code 98765 --phone 800-123-4567 -e admin@example.com**
+**acctclient create_account -a newaccount --account_long_name 'example.com new account'  --account_type 1  --address1 '123 Main Street' --city Anytown --state CO--postal_code 98765 --phone 800-123-4567 -e admin@example.com**
 
 Creates an account to hold users and roles. Each account is independent of other accounts, so is likely 
-to be associated with a company or division. Requires admin privileges to create an account.
+to be associated with a company or division. Requires super privileges to create an account.
 
 **acctclient create_claim_name --claim_name acctmgt --claim_description 'account management'**
 
@@ -111,7 +114,8 @@ The database also needs to be bootrapped with data to establish the initial acco
 initial admin user and roles.  This can be accomplished by running **bootstrap.sql**. This will create an initial account named 
 **master** with a single administrative user, **admin@example.com**. The initial password is **changeme**. The account name
 and administrative user can be changed using a text editor against bootstrap.sql.  Alternatively, the Go Client discussed later can be 
-used to modify the initial settings. 
+used to modify the initial settings. Note that this essentially gives the administrator user **super user** status, since it is has
+admin rights in the master account. This is needed to create alternative accounts.
 
 ## Data Model
 
@@ -200,9 +204,11 @@ as acctclient, except the HTTP Rest transport is used instead of gRPC.
 
 The MService microservice relies on the **acctmgt** claim, and the following claim values:
 
-**admin**: administrative access, across all accounts
+**super**: this ia granted to an account user in the master account who has admin claim value. This allows all operations on all accounts, including account creation and creating claims and claim values.
 
-**acctrw**: read/write (administrative) access within a single account
+**admin**: administrative access within a single account, it does not allow creating additional accounts.
+
+**acctrw**: read/write access within a single account
 
 **acctro**: read only access within a single account
 
