@@ -169,6 +169,7 @@ func main() {
 		fmt.Printf("    %s create_claim_name --claim_name <claim_name> --claim_description <claim_description>\n", prog)
 		fmt.Printf("    %s update_claim_name --claim_name_id <claim_name_id> [--claim_name <claim_name>] [--claim_description <claim_description>]\n", prog)
 		fmt.Printf("    %s delete_claim_name --claim_name_id <claim_name_id>\n", prog)
+		fmt.Printf("    %s get_claim_name_by_id --claim_name_id <claim_name_id>\n", prog)
 		fmt.Printf("    %s get_claim_names \n", prog)
 		fmt.Printf("    %s create_claim_value --claim_name_id <claim_name_id> --claim_val <claim_val> --claim_value_description <claim_value_description>\n", prog)
 		fmt.Printf("    %s update_claim_value --claim_value_id <claim_value_id> [--claim_val <claim_val>] [--claim_value_description <claim_value_description>]\n", prog)
@@ -357,6 +358,11 @@ func main() {
 			validParams = false
 		}
 	case "delete_claim_name":
+		if claim_name_id == 0 {
+			fmt.Println("claim_name_id parameter missing")
+			validParams = false
+		}
+	case "get_claim_name_by_id":
 		if claim_name_id == 0 {
 			fmt.Println("claim_name_id parameter missing")
 			validParams = false
@@ -995,6 +1001,21 @@ func main() {
 		req.ClaimNameId = claim_name_id
 		req.Version = version
 		resp, err := client.DeleteClaimName(mctx, &req)
+		if err == nil {
+			jtext, err := json.MarshalIndent(resp, "", "  ")
+			if err == nil {
+				fmt.Println(string(jtext))
+			}
+		}
+
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+		}
+
+	case "get_claim_name_by_id":
+		req := pb.GetClaimNameByIdRequest{}
+		req.ClaimNameId = claim_name_id
+		resp, err := client.GetClaimNameById(mctx, &req)
 		if err == nil {
 			jtext, err := json.MarshalIndent(resp, "", "  ")
 			if err == nil {

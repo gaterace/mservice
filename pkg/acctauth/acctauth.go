@@ -641,7 +641,7 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 
 		if ok {
 			resp, err = s.acctService.GetAccountUserById(ctx, req)
-			
+
 			if postCheckAccount {
 				if resp.ErrorCode == 0 {
 					if resp.GetAccountUser().GetAccountId() != aid {
@@ -858,6 +858,34 @@ func (s *AccountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNa
 	return resp, err
 }
 
+func (s *AccountAuth) GetClaimNameById(ctx context.Context, req *pb.GetClaimNameByIdRequest) (*pb.GetClaimNameByIdResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetClaimNameByIdResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if (acctmgt == "super") || (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+			resp, err = s.acctService.GetClaimNameById(ctx, req)
+		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetClaimNameById",
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+}
+
 // get all claim names.
 func (s *AccountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRequest) (*pb.GetClaimNamesResponse, error) {
 	start := time.Now().UnixNano()
@@ -1048,7 +1076,7 @@ func (s *AccountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValues
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "super" {
+		if (acctmgt == "super") || (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimValues(ctx, req)
 		}
 

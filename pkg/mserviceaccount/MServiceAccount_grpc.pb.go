@@ -54,6 +54,8 @@ type MServiceAccountClient interface {
 	UpdateClaimName(ctx context.Context, in *UpdateClaimNameRequest, opts ...grpc.CallOption) (*UpdateClaimNameResponse, error)
 	// delete an existing claim name
 	DeleteClaimName(ctx context.Context, in *DeleteClaimNameRequest, opts ...grpc.CallOption) (*DeleteClaimNameResponse, error)
+	// get claim name by id
+	GetClaimNameById(ctx context.Context, in *GetClaimNameByIdRequest, opts ...grpc.CallOption) (*GetClaimNameByIdResponse, error)
 	// get all claim names
 	GetClaimNames(ctx context.Context, in *GetClaimNamesRequest, opts ...grpc.CallOption) (*GetClaimNamesResponse, error)
 	// create claim value
@@ -260,6 +262,15 @@ func (c *mServiceAccountClient) DeleteClaimName(ctx context.Context, in *DeleteC
 	return out, nil
 }
 
+func (c *mServiceAccountClient) GetClaimNameById(ctx context.Context, in *GetClaimNameByIdRequest, opts ...grpc.CallOption) (*GetClaimNameByIdResponse, error) {
+	out := new(GetClaimNameByIdResponse)
+	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/get_claim_name_by_id", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *mServiceAccountClient) GetClaimNames(ctx context.Context, in *GetClaimNamesRequest, opts ...grpc.CallOption) (*GetClaimNamesResponse, error) {
 	out := new(GetClaimNamesResponse)
 	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/get_claim_names", in, out, opts...)
@@ -453,6 +464,8 @@ type MServiceAccountServer interface {
 	UpdateClaimName(context.Context, *UpdateClaimNameRequest) (*UpdateClaimNameResponse, error)
 	// delete an existing claim name
 	DeleteClaimName(context.Context, *DeleteClaimNameRequest) (*DeleteClaimNameResponse, error)
+	// get claim name by id
+	GetClaimNameById(context.Context, *GetClaimNameByIdRequest) (*GetClaimNameByIdResponse, error)
 	// get all claim names
 	GetClaimNames(context.Context, *GetClaimNamesRequest) (*GetClaimNamesResponse, error)
 	// create claim value
@@ -547,6 +560,9 @@ func (UnimplementedMServiceAccountServer) UpdateClaimName(context.Context, *Upda
 }
 func (UnimplementedMServiceAccountServer) DeleteClaimName(context.Context, *DeleteClaimNameRequest) (*DeleteClaimNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteClaimName not implemented")
+}
+func (UnimplementedMServiceAccountServer) GetClaimNameById(context.Context, *GetClaimNameByIdRequest) (*GetClaimNameByIdResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetClaimNameById not implemented")
 }
 func (UnimplementedMServiceAccountServer) GetClaimNames(context.Context, *GetClaimNamesRequest) (*GetClaimNamesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetClaimNames not implemented")
@@ -936,6 +952,24 @@ func _MServiceAccount_DeleteClaimName_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MServiceAccount_GetClaimNameById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetClaimNameByIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MServiceAccountServer).GetClaimNameById(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.gaterace.mservice.account.MServiceAccount/get_claim_name_by_id",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MServiceAccountServer).GetClaimNameById(ctx, req.(*GetClaimNameByIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MServiceAccount_GetClaimNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetClaimNamesRequest)
 	if err := dec(in); err != nil {
@@ -1320,6 +1354,10 @@ var MServiceAccount_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "delete_claim_name",
 			Handler:    _MServiceAccount_DeleteClaimName_Handler,
+		},
+		{
+			MethodName: "get_claim_name_by_id",
+			Handler:    _MServiceAccount_GetClaimNameById_Handler,
 		},
 		{
 			MethodName: "get_claim_names",

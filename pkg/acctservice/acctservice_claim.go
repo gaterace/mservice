@@ -140,6 +140,45 @@ func (s *accountService) DeleteClaimName(ctx context.Context, req *pb.DeleteClai
 	return resp, err
 }
 
+// get claim name by id
+func (s *accountService) GetClaimNameById(ctx context.Context, req *pb.GetClaimNameByIdRequest) (*pb.GetClaimNameByIdResponse, error) {
+	resp := &pb.GetClaimNameByIdResponse{}
+	var err error
+
+	sqlstring := `SELECT inbClaimNameId, dtmCreated, dtmModified, intVersion, chvClaimName, chvClaimDescription
+	FROM tb_Claim WHERE inbClaimNameId = ? AND bitIsDeleted = 0`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	var claim pb.Claim
+	var created string
+	var modified string
+
+	err = stmt.QueryRow(req.GetClaimNameId()).Scan(&claim.ClaimNameId, &created, &modified, &claim.Version, &claim.ClaimName, &claim.ClaimDescription)
+
+	if err != nil {
+		resp.ErrorCode = 502
+		resp.ErrorMessage = "unable to match existing claim name"
+		level.Error(s.logger).Log("what", "QueryRow", "error", err)
+		return resp, nil
+	}
+
+	claim.Created = dml.DateTimeFromString(created)
+	claim.Modified = dml.DateTimeFromString(modified)
+
+	resp.Claim = &claim
+
+	return resp, err
+}
+
 // get all claim names
 func (s *accountService) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRequest) (*pb.GetClaimNamesResponse, error) {
 	resp := &pb.GetClaimNamesResponse{}
