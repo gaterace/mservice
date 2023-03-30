@@ -55,6 +55,7 @@ func (mh *muxHandler) AddRoutes() {
 	mh.rtr.HandleFunc("/api/user", mh.CreateUserHandler).Methods("POST")
 	mh.rtr.HandleFunc("/api/user/{id:[0-9]+}", mh.UpdateUserHandler).Methods("PUT")
 	mh.rtr.HandleFunc("/api/user/pwd/{id:[0-9]+}", mh.UpdateUserPasswordHandler).Methods("PUT")
+	mh.rtr.HandleFunc("/api/user/resetpwd/{id:[0-9]+}", mh.ResetUserPasswordHandler).Methods("PUT")
 	mh.rtr.HandleFunc("/api/user/{id:[0-9]+}/{version:[0-9]+}", mh.DeleteUserHandler).Methods("DELETE")
 	mh.rtr.HandleFunc("/api/user/id/{id:[0-9]+}", mh.UserByIdHandler).Methods("GET")
 	mh.rtr.HandleFunc("/api/user/email/{account}/{email}", mh.UserByEmailHandler).Methods("GET")
@@ -63,6 +64,7 @@ func (mh *muxHandler) AddRoutes() {
 	mh.rtr.HandleFunc("/api/claim", mh.CreateClaimNameHandler).Methods("POST")
 	mh.rtr.HandleFunc("/api/claim/{id:[0-9]+}", mh.UpdateClaimNameHandler).Methods("PUT")
 	mh.rtr.HandleFunc("/api/claim/{id:[0-9]+}/{version:[0-9]+}", mh.DeleteClaimNameHandler).Methods("DELETE")
+	mh.rtr.HandleFunc("/api/claim/{id:[0-9]+}", mh.ClaimNameByIdHandler).Methods("GET")
 	mh.rtr.HandleFunc("/api/claims", mh.ClaimNamesHandler).Methods("GET")
 
 	mh.rtr.HandleFunc("/api/claimvalue", mh.CreateClaimValueHandler).Methods("POST")
@@ -348,6 +350,38 @@ func (mh *muxHandler) UpdateUserPasswordHandler(w http.ResponseWriter, r *http.R
 	return
 }
 
+// Handle ResetAccountUserPassword. Expects a PUT request and ResetAccountUserPasswordRequest body.
+func (mh *muxHandler) ResetUserPasswordHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userId, _ := strconv.ParseInt(vars["id"], 10, 64)
+	req := pb.ResetAccountUserPasswordRequest{}
+
+	buf, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(501)
+		return
+	}
+
+	err = json.Unmarshal(buf, &req)
+	if err != nil {
+		w.WriteHeader(502)
+		return
+	}
+
+	req.UserId = userId
+
+	ctx := getTokenContext(r)
+	resp, err := mh.auth.ResetAccountUserPassword(ctx, &req)
+	if err == nil {
+		writeResponse(resp, err, int(resp.GetErrorCode()), w)
+		return
+	}
+
+	w.WriteHeader(503)
+
+	return
+}
+
 // Handle DeleteAccountUser. Expects a DELETE request and nil body.
 func (mh *muxHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -514,6 +548,25 @@ func (mh *muxHandler) DeleteClaimNameHandler(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(503)
 
 	return
+}
+
+// Handle GetClaimNameById. Expects a GET request and nil body.
+func (mh *muxHandler) ClaimNameByIdHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	claimId, _ := strconv.ParseInt(vars["id"], 10, 64)
+
+	req := pb.GetClaimNameByIdRequest{}
+	req.ClaimNameId = claimId
+
+	ctx := getTokenContext(r)
+
+	resp, err := mh.auth.GetClaimNameById(ctx, &req)
+	if err == nil {
+		writeResponse(resp, err, int(resp.GetErrorCode()), w)
+		return
+	}
+
+	w.WriteHeader(503)
 }
 
 // Handle GetClaimNames. Expects a GET request and nil body.
