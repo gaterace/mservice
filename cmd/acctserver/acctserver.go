@@ -132,7 +132,7 @@ func (c *cli) setupConfig(cmd *cobra.Command, args []string) error {
 	c.cfg.KeyFile = viper.GetString("key_file")
 	c.cfg.Tls = viper.GetBool("tls")
 	c.cfg.Port = viper.GetInt("port")
-	c.cfg.RestPort = viper.GetInt("rest-port")
+	c.cfg.RestPort = viper.GetInt("rest_port")
 	c.cfg.DbUser = viper.GetString("db_user")
 	c.cfg.DbPwd = viper.GetString("db_pwd")
 	c.cfg.DbTransport = viper.GetString("db_transport")
