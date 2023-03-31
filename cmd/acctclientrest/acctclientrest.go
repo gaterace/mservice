@@ -839,7 +839,7 @@ func main() {
 		url := fmt.Sprintf("%s/api/claim/%d", serverAddr, claim_name_id, version)
 		doMuxRequest(url, bearer, client, "DELETE", nil)
 	case "get_claim_name_by_id":
-		url := fmt.Sprintf("%s/api/claim", serverAddr, claim_name_id)
+		url := fmt.Sprintf("%s/api/claim/%d", serverAddr, claim_name_id)
 		doMuxRequest(url, bearer, client, "GET", nil)
 	case "get_claim_names":
 		url := fmt.Sprintf("%s/api/claims", serverAddr)
