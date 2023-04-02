@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Demian Harvill
+// Copyright 2019-2023 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -164,6 +164,7 @@ func main() {
 		fmt.Printf("    %s update_account_user --user_id <user_id>  --version <version> -e <email> --user_full_name <user_full_name>\n", prog)
 		fmt.Println("          --user_type <user_type>")
 		fmt.Printf("    %s update_account_user_password --user_id <user_id> --version <version> --password_old <password_old> --password <password>\n", prog)
+		fmt.Printf("    %s reset_account_user_password --user_id <user_id> --password <password>\n", prog)
 		fmt.Printf("    %s delete_account_user --user_id <user_id> --version <version>\n", prog)
 		fmt.Printf("    %s get_account_user_by_id --user_id <user_id>\n", prog)
 		fmt.Printf("    %s get_account_user_by_email [-a <account>] -e <email>\n", prog)
@@ -172,6 +173,7 @@ func main() {
 		fmt.Printf("    %s create_claim_name --claim_name <claim_name> --claim_description <claim_description>\n", prog)
 		fmt.Printf("    %s update_claim_name --claim_name_id <claim_name_id> [--claim_name <claim_name>] [--claim_description <claim_description>]\n", prog)
 		fmt.Printf("    %s delete_claim_name --claim_name_id <claim_name_id>\n", prog)
+		fmt.Printf("    %s get_claim_name_by_id --claim_name_id <claim_name_id>\n", prog)
 		fmt.Printf("    %s get_claim_names \n", prog)
 		fmt.Printf("    %s create_claim_value --claim_name_id <claim_name_id> --claim_val <claim_val> --claim_value_description <claim_value_description>\n", prog)
 		fmt.Printf("    %s update_claim_value --claim_value_id <claim_value_id> --version <version> --claim_val <claim_val> --claim_value_description <claim_value_description>\n", prog)
@@ -379,6 +381,15 @@ func main() {
 			fmt.Println("password parameter missing")
 			validParams = false
 		}
+	case "reset_account_user_password":
+		if user_id == 0 {
+			fmt.Println("user_id parameter missing")
+			validParams = false
+		}
+		if password == "" {
+			fmt.Println("password parameter missing")
+			validParams = false
+		}
 	case "delete_account_user":
 		if user_id == 0 {
 			fmt.Println("user_id parameter missing")
@@ -429,6 +440,11 @@ func main() {
 		}
 		if version <= 0 {
 			fmt.Println("version parameter missing")
+			validParams = false
+		}
+	case "get_claim_name_by_id":
+		if claim_name_id == 0 {
+			fmt.Println("claim_name_id parameter missing")
 			validParams = false
 		}
 	case "get_claim_names":
@@ -768,6 +784,18 @@ func main() {
 		url := fmt.Sprintf("%s/api/user/pwd/%d", serverAddr, user_id)
 		doMuxRequest(url, bearer, client, "PUT", json)
 
+	case "reset_account_user_password":
+		req := pb.ResetAccountUserPasswordRequest{}
+		req.UserId = user_id
+		req.PasswordEnc = password
+		json, err := requestToJson(req)
+		if err != nil {
+			fmt.Printf("err: %s\n", err)
+			break
+		}
+
+		url := fmt.Sprintf("%s/api/user/resetpwd/%d", serverAddr, user_id)
+		doMuxRequest(url, bearer, client, "PUT", json)
 	case "delete_account_user":
 		url := fmt.Sprintf("%s/api/user/%d/%d", serverAddr, user_id, version)
 		doMuxRequest(url, bearer, client, "DELETE", nil)
@@ -808,9 +836,11 @@ func main() {
 		doMuxRequest(url, bearer, client, "PUT", json)
 
 	case "delete_claim_name":
-		url := fmt.Sprintf("%s/api/claim/%d/%d", serverAddr, claim_name_id, version)
+		url := fmt.Sprintf("%s/api/claim/%d", serverAddr, claim_name_id, version)
 		doMuxRequest(url, bearer, client, "DELETE", nil)
-
+	case "get_claim_name_by_id":
+		url := fmt.Sprintf("%s/api/claim/%d", serverAddr, claim_name_id)
+		doMuxRequest(url, bearer, client, "GET", nil)
 	case "get_claim_names":
 		url := fmt.Sprintf("%s/api/claims", serverAddr)
 		doMuxRequest(url, bearer, client, "GET", nil)

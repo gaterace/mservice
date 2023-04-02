@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Demian Harvill
+// Copyright 2019-2023 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -133,6 +133,50 @@ func (s *accountService) DeleteClaimName(ctx context.Context, req *pb.DeleteClai
 		level.Error(s.logger).Log("what", "Exec", "error", err)
 		err = nil
 	}
+
+	return resp, err
+}
+
+// get claim name by id
+func (s *accountService) GetClaimNameById(ctx context.Context, req *pb.GetClaimNameByIdRequest) (*pb.GetClaimNameByIdResponse, error) {
+	resp := &pb.GetClaimNameByIdResponse{}
+	var err error
+
+	sqlstring := `SELECT inbClaimNameId, dtmCreated, dtmModified, intVersion, chvClaimName, chvClaimDescription
+	FROM tb_Claim WHERE inbClaimNameId = $1 AND bitIsDeleted = 0`
+
+	stmt, err := s.db.Prepare(sqlstring)
+	if err != nil {
+		level.Error(s.logger).Log("what", "Prepare", "error", err)
+		resp.ErrorCode = 500
+		resp.ErrorMessage = "db.Prepare failed"
+		return resp, nil
+	}
+
+	defer stmt.Close()
+
+	var claim pb.Claim
+	var created string
+	var modified string
+
+	err = stmt.QueryRow(req.GetClaimNameId()).Scan(&claim.ClaimNameId, &created, &modified, &claim.Version, &claim.ClaimName, &claim.ClaimDescription)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			resp.ErrorCode = 404
+			resp.ErrorMessage = "not found"
+		} else {
+			level.Error(s.logger).Log("what", "QueryRow", "error", err)
+			resp.ErrorCode = 500
+			resp.ErrorMessage = err.Error()
+		}
+		return resp, nil
+	}
+
+	claim.Created = dml.DateTimeFromString(created)
+	claim.Modified = dml.DateTimeFromString(modified)
+
+	resp.Claim = &claim
 
 	return resp, err
 }

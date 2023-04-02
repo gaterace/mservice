@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Demian Harvill
+// Copyright 2019-2023 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -187,7 +187,8 @@ func (s *AccountAuth) CreateAccount(ctx context.Context, req *pb.CreateAccountRe
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		// only acctmgt == super can create new account
+		if acctmgt == "super" {
 			resp, err = s.acctService.CreateAccount(ctx, req)
 		}
 	} else {
@@ -217,7 +218,14 @@ func (s *AccountAuth) UpdateAccount(ctx context.Context, req *pb.UpdateAccountRe
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		actname := GetStringFromClaims(claims, "actname")
+		ok := false
+		if acctmgt == "super" {
+			ok = true
+		}
 		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == req.GetAccountName())) {
+			ok = true
+		}
+		if ok {
 			resp, err = s.acctService.UpdateAccount(ctx, req)
 		}
 	} else {
@@ -247,7 +255,16 @@ func (s *AccountAuth) DeleteAccount(ctx context.Context, req *pb.DeleteAccountRe
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		aid := GetInt64FromClaims(claims, "aid")
+		ok := false
+
+		if acctmgt == "super" {
+			ok = true
+		}
+		if (acctmgt == "admin") && (aid == req.GetAccountId()) {
+			ok = true
+		}
+		if ok {
 			resp, err = s.acctService.DeleteAccount(ctx, req)
 		}
 	} else {
@@ -279,8 +296,16 @@ func (s *AccountAuth) GetAccountById(ctx context.Context, req *pb.GetAccountById
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
+		ok := false
+		if acctmgt == "super" {
+			ok = true
+		}
 
-		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) || ((acctmgt == "acctro") && (aid == accountId)) {
+		if ((acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro")) && (aid == accountId) {
+			ok = true
+		}
+
+		if ok {
 			resp, err = s.acctService.GetAccountById(ctx, req)
 		}
 	} else {
@@ -313,7 +338,15 @@ func (s *AccountAuth) GetAccountByName(ctx context.Context, req *pb.GetAccountBy
 		actname := GetStringFromClaims(claims, "actname")
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		reqAccount := req.GetAccountName()
-		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == reqAccount)) || ((acctmgt == "acctro") && (actname == reqAccount)) {
+
+		ok := false
+		if acctmgt == "super" {
+			ok = true
+		}
+		if ((acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro")) && (actname == reqAccount) {
+			ok = true
+		}
+		if ok {
 			resp, err = s.acctService.GetAccountByName(ctx, req)
 		}
 	} else {
@@ -343,12 +376,9 @@ func (s *AccountAuth) GetAccountNames(ctx context.Context, req *pb.GetAccountNam
 	claims, err := s.GetJwtFromContext(ctx)
 
 	if err == nil {
-		// uid := GetInt64FromClaims(claims, "uid")
-		// actname := GetStringFromClaims(claims, "actname")
-
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			resp, err = s.acctService.GetAccountNames(ctx, req)
 		}
 	} else {
@@ -379,7 +409,15 @@ func (s *AccountAuth) CreateAccountUser(ctx context.Context, req *pb.CreateAccou
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
-		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
+		ok := false
+		if acctmgt == "super" {
+			ok = true
+		}
+
+		if ((acctmgt == "admin") || (acctmgt == "acctrw")) && (aid == accountId) {
+			ok = true
+		}
+		if ok {
 			resp, err = s.acctService.CreateAccountUser(ctx, req)
 		}
 	} else {
@@ -407,21 +445,23 @@ func (s *AccountAuth) UpdateAccountUser(ctx context.Context, req *pb.UpdateAccou
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
-	var ok bool
-
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		uid := GetInt64FromClaims(claims, "uid")
-		if acctmgt == "admin" {
+		ok := false
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromUserid(req.GetUserId())
 			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
-		} else if acctmgt == "userrw" {
+			ok = true
+		}
+		if acctmgt == "userrw" {
 			if req.GetUserId() == uid {
 				ok = true
 			}
@@ -462,14 +502,17 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		uid := GetInt64FromClaims(claims, "uid")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromUserid(req.GetUserId())
 			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
-		} else if (acctmgt == "userrw") || (acctmgt == "userpw") {
+		}
+
+		if (acctmgt == "userrw") || (acctmgt == "userpw") {
 			if req.GetUserId() == uid {
 				ok = true
 			}
@@ -495,6 +538,32 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
 	return resp, err
 }
 
+// reset an existing account user password without knowing old password
+func (s *AccountAuth) ResetAccountUserPassword(ctx context.Context, req *pb.ResetAccountUserPasswordRequest) (*pb.ResetAccountUserPasswordResponse, error) {
+
+	start := time.Now().UnixNano()
+	resp := &pb.ResetAccountUserPasswordResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if acctmgt == "super" {
+			// only super role can reset password
+			resp, err = s.acctService.ResetAccountUserPassword(ctx, req)
+		}
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "ResetAccountUserPassword",
+		"userid", req.GetUserId(),
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+
+}
+
 // delete an existing account user.
 func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccountUserRequest) (*pb.DeleteAccountUserResponse, error) {
 	start := time.Now().UnixNano()
@@ -509,14 +578,17 @@ func (s *AccountAuth) DeleteAccountUser(ctx context.Context, req *pb.DeleteAccou
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		uid := GetInt64FromClaims(claims, "uid")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromUserid(req.GetUserId())
 			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
-		} else if acctmgt == "userrw" {
+		}
+
+		if acctmgt == "userrw" {
 			if req.GetUserId() == uid {
 				ok = true
 			}
@@ -557,9 +629,10 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 		var ok bool
 		var postCheckAccount bool
 
-		if acctmgt == "admin" {
+		postCheckAccount = false
+		if acctmgt == "super" {
 			ok = true
-		} else if (acctmgt == "acctrw") || (acctmgt == "acctro") {
+		} else if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			ok = true
 			postCheckAccount = true
 		} else if ((acctmgt == "userrw") || (acctmgt == "userro")) && (uid == req.GetUserId()) {
@@ -569,10 +642,14 @@ func (s *AccountAuth) GetAccountUserById(ctx context.Context, req *pb.GetAccount
 		if ok {
 			resp, err = s.acctService.GetAccountUserById(ctx, req)
 
-			if postCheckAccount && (resp.GetAccountUser() == nil) || (resp.GetAccountUser().GetAccountId() != aid) {
-				resp.ErrorCode = 401
-				resp.ErrorMessage = "not authorized"
-				resp.AccountUser = nil
+			if postCheckAccount {
+				if resp.ErrorCode == 0 {
+					if resp.GetAccountUser().GetAccountId() != aid {
+						resp.ErrorCode = 401
+						resp.ErrorMessage = "not authorized"
+						//	resp.AccountUser = nil
+					}
+				}
 			}
 		}
 	} else {
@@ -608,9 +685,9 @@ func (s *AccountAuth) GetAccountUserByEmail(ctx context.Context, req *pb.GetAcco
 		var postCheckAccount bool
 		var postCheckUserid bool
 
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if (acctmgt == "acctrw") || (acctmgt == "acctro") {
+		} else if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			ok = true
 			postCheckAccount = true
 		} else if (acctmgt == "userrw") || (acctmgt == "userro") {
@@ -663,7 +740,15 @@ func (s *AccountAuth) GetAccountUsers(ctx context.Context, req *pb.GetAccountUse
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		actname := GetStringFromClaims(claims, "actname")
 		reqAccount := req.GetAccountName()
-		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (actname == reqAccount)) || ((acctmgt == "acctro") && (actname == reqAccount)) {
+		ok := false
+
+		if acctmgt == "super" {
+			ok = true
+		}
+		if (acctmgt == "admin") || ((acctmgt == "acctrw") || (acctmgt == "acctro")) && (actname == reqAccount) {
+			ok = true
+		}
+		if ok {
 			resp, err = s.acctService.GetAccountUsers(ctx, req)
 		}
 	} else {
@@ -693,7 +778,7 @@ func (s *AccountAuth) CreateClaimName(ctx context.Context, req *pb.CreateClaimNa
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			resp, err = s.acctService.CreateClaimName(ctx, req)
 		}
 	} else {
@@ -723,7 +808,7 @@ func (s *AccountAuth) UpdateClaimName(ctx context.Context, req *pb.UpdateClaimNa
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			resp, err = s.acctService.UpdateClaimName(ctx, req)
 		}
 	} else {
@@ -753,7 +838,7 @@ func (s *AccountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNa
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			resp, err = s.acctService.DeleteClaimName(ctx, req)
 		}
 	} else {
@@ -773,6 +858,34 @@ func (s *AccountAuth) DeleteClaimName(ctx context.Context, req *pb.DeleteClaimNa
 	return resp, err
 }
 
+func (s *AccountAuth) GetClaimNameById(ctx context.Context, req *pb.GetClaimNameByIdRequest) (*pb.GetClaimNameByIdResponse, error) {
+	start := time.Now().UnixNano()
+	resp := &pb.GetClaimNameByIdResponse{}
+	resp.ErrorCode = 401
+	resp.ErrorMessage = "not authorized"
+
+	claims, err := s.GetJwtFromContext(ctx)
+	if err == nil {
+		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		if (acctmgt == "super") || (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+			resp, err = s.acctService.GetClaimNameById(ctx, req)
+		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
+	}
+
+	duration := time.Now().UnixNano() - start
+	level.Info(s.logger).Log("endpoint", "GetClaimNameById",
+		"errcode", resp.GetErrorCode(), "duration", duration)
+
+	return resp, err
+}
+
 // get all claim names.
 func (s *AccountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRequest) (*pb.GetClaimNamesResponse, error) {
 	start := time.Now().UnixNano()
@@ -783,7 +896,7 @@ func (s *AccountAuth) GetClaimNames(ctx context.Context, req *pb.GetClaimNamesRe
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+		if (acctmgt == "super") || (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimNames(ctx, req)
 		}
 	} else {
@@ -812,7 +925,7 @@ func (s *AccountAuth) CreateClaimValue(ctx context.Context, req *pb.CreateClaimV
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			resp, err = s.acctService.CreateClaimValue(ctx, req)
 		}
 	} else {
@@ -842,7 +955,7 @@ func (s *AccountAuth) UpdateClaimValue(ctx context.Context, req *pb.UpdateClaimV
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			resp, err = s.acctService.UpdateClaimValue(ctx, req)
 		}
 	} else {
@@ -872,7 +985,7 @@ func (s *AccountAuth) DeleteClaimValue(ctx context.Context, req *pb.DeleteClaimV
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			resp, err = s.acctService.DeleteClaimValue(ctx, req)
 		}
 	} else {
@@ -902,7 +1015,7 @@ func (s *AccountAuth) GetClaimValueById(ctx context.Context, req *pb.GetClaimVal
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+		if (acctmgt == "super") || (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimValueById(ctx, req)
 		}
 	} else {
@@ -933,7 +1046,7 @@ func (s *AccountAuth) GetClaimValuesByNameId(ctx context.Context,
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
+		if (acctmgt == "super") || (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimValuesByNameId(ctx, req)
 		}
 	} else {
@@ -963,7 +1076,7 @@ func (s *AccountAuth) GetClaimValues(ctx context.Context, req *pb.GetClaimValues
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
-		if acctmgt == "admin" {
+		if (acctmgt == "super") || (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			resp, err = s.acctService.GetClaimValues(ctx, req)
 		}
 
@@ -995,7 +1108,14 @@ func (s *AccountAuth) CreateAccountRole(ctx context.Context, req *pb.CreateAccou
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
-		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
+		ok := false
+		if acctmgt == "super" {
+			ok = true
+		}
+		if ((acctmgt == "admin") || (acctmgt == "acctrw")) && (aid == accountId) {
+			ok = true
+		}
+		if ok {
 			resp, err = s.acctService.CreateAccountRole(ctx, req)
 		}
 	} else {
@@ -1029,9 +1149,10 @@ func (s *AccountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccou
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
 			if (err != nil) && (aid == accountId) {
 				ok = true
@@ -1071,9 +1192,11 @@ func (s *AccountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccou
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
 			if (err != nil) && (aid == accountId) {
 				ok = true
@@ -1112,9 +1235,11 @@ func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccount
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if (acctmgt == "acctrw") || (acctmgt == "acctro") {
+		}
+
+		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
 			if (err != nil) && (aid == accountId) {
 				ok = true
@@ -1152,7 +1277,17 @@ func (s *AccountAuth) GetAccountRoles(ctx context.Context, req *pb.GetAccountRol
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		accountId := req.GetAccountId()
-		if (acctmgt == "admin") || ((acctmgt == "acctrw") && (aid == accountId)) {
+
+		ok := false
+
+		if acctmgt == "super" {
+			ok = true
+		}
+		if ((acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro")) && (aid == accountId) {
+			ok = true
+
+		}
+		if ok {
 			resp, err = s.acctService.GetAccountRoles(ctx, req)
 		}
 	} else {
@@ -1186,14 +1321,21 @@ func (s *AccountAuth) AddUserToRole(ctx context.Context, req *pb.AddUserToRoleRe
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
 
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
 
 			if (err == nil) && (aid == accountId) {
 				// avoid privilege escalation
-				roleMatch := s.HelperRoleContains(roleId, "acctmgt", "admin")
+				roleMatch := s.HelperRoleContains(roleId, "acctmgt", "super")
+				if acctmgt == "acctrw" {
+					if !roleMatch {
+						roleMatch = s.HelperRoleContains(roleId, "acctmgt", "admin")
+					}
+				}
 				if roleMatch {
 					level.Warn(s.logger).Log("msg", fmt.Sprintf("AddUserToRole privilege escalation attempted, roleId: %d", roleId))
 				}
@@ -1234,9 +1376,11 @@ func (s *AccountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUser
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
 			if (err != nil) && (aid == accountId) {
 				ok = true
@@ -1276,18 +1420,26 @@ func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRole
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+
+		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
 			if (err != nil) && (aid == accountId) {
 				// avoid privilege escalation
 				claimName, claimValue, err := s.HelperClaimFromClaimValueId(req.GetClaimValueId())
 				if err == nil {
-					if claimName == "acctmgt" && claimValue == "admin" {
+					if claimName == "acctmgt" && claimValue == "super" {
 						level.Warn(s.logger).Log("msg", fmt.Sprintf("AddClaimToRole privilege escalation attempted, roleId: %d", roleId))
 					} else {
 						ok = true
+						if acctmgt == "acctrw" {
+							if claimName == "acctmgt" && claimValue == "admin" {
+								level.Warn(s.logger).Log("msg", fmt.Sprintf("AddClaimToRole privilege escalation attempted, roleId: %d", roleId))
+								ok = false
+							}
+						}
 					}
 				}
 			}
@@ -1326,9 +1478,11 @@ func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveCla
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
 		aid := GetInt64FromClaims(claims, "aid")
 		roleId := req.GetRoleId()
-		if acctmgt == "admin" {
+		if acctmgt == "super" {
 			ok = true
-		} else if acctmgt == "acctrw" {
+		}
+
+		if acctmgt == "admin" || acctmgt == "acctrw" {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
 			if (err != nil) && (aid == accountId) {
 				ok = true

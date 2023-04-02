@@ -38,6 +38,8 @@ type MServiceAccountClient interface {
 	UpdateAccountUser(ctx context.Context, in *UpdateAccountUserRequest, opts ...grpc.CallOption) (*UpdateAccountUserResponse, error)
 	// update an existing account user password
 	UpdateAccountUserPassword(ctx context.Context, in *UpdateAccountUserPasswordRequest, opts ...grpc.CallOption) (*UpdateAccountUserPasswordResponse, error)
+	// reset an existing account user password without knowing old password
+	ResetAccountUserPassword(ctx context.Context, in *ResetAccountUserPasswordRequest, opts ...grpc.CallOption) (*ResetAccountUserPasswordResponse, error)
 	// delete an existing account user
 	DeleteAccountUser(ctx context.Context, in *DeleteAccountUserRequest, opts ...grpc.CallOption) (*DeleteAccountUserResponse, error)
 	// get an account user by id
@@ -52,6 +54,8 @@ type MServiceAccountClient interface {
 	UpdateClaimName(ctx context.Context, in *UpdateClaimNameRequest, opts ...grpc.CallOption) (*UpdateClaimNameResponse, error)
 	// delete an existing claim name
 	DeleteClaimName(ctx context.Context, in *DeleteClaimNameRequest, opts ...grpc.CallOption) (*DeleteClaimNameResponse, error)
+	// get claim name by id
+	GetClaimNameById(ctx context.Context, in *GetClaimNameByIdRequest, opts ...grpc.CallOption) (*GetClaimNameByIdResponse, error)
 	// get all claim names
 	GetClaimNames(ctx context.Context, in *GetClaimNamesRequest, opts ...grpc.CallOption) (*GetClaimNamesResponse, error)
 	// create claim value
@@ -186,6 +190,15 @@ func (c *mServiceAccountClient) UpdateAccountUserPassword(ctx context.Context, i
 	return out, nil
 }
 
+func (c *mServiceAccountClient) ResetAccountUserPassword(ctx context.Context, in *ResetAccountUserPasswordRequest, opts ...grpc.CallOption) (*ResetAccountUserPasswordResponse, error) {
+	out := new(ResetAccountUserPasswordResponse)
+	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/reset_account_user_password", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *mServiceAccountClient) DeleteAccountUser(ctx context.Context, in *DeleteAccountUserRequest, opts ...grpc.CallOption) (*DeleteAccountUserResponse, error) {
 	out := new(DeleteAccountUserResponse)
 	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/delete_account_user", in, out, opts...)
@@ -243,6 +256,15 @@ func (c *mServiceAccountClient) UpdateClaimName(ctx context.Context, in *UpdateC
 func (c *mServiceAccountClient) DeleteClaimName(ctx context.Context, in *DeleteClaimNameRequest, opts ...grpc.CallOption) (*DeleteClaimNameResponse, error) {
 	out := new(DeleteClaimNameResponse)
 	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/delete_claim_name", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *mServiceAccountClient) GetClaimNameById(ctx context.Context, in *GetClaimNameByIdRequest, opts ...grpc.CallOption) (*GetClaimNameByIdResponse, error) {
+	out := new(GetClaimNameByIdResponse)
+	err := c.cc.Invoke(ctx, "/org.gaterace.mservice.account.MServiceAccount/get_claim_name_by_id", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -426,6 +448,8 @@ type MServiceAccountServer interface {
 	UpdateAccountUser(context.Context, *UpdateAccountUserRequest) (*UpdateAccountUserResponse, error)
 	// update an existing account user password
 	UpdateAccountUserPassword(context.Context, *UpdateAccountUserPasswordRequest) (*UpdateAccountUserPasswordResponse, error)
+	// reset an existing account user password without knowing old password
+	ResetAccountUserPassword(context.Context, *ResetAccountUserPasswordRequest) (*ResetAccountUserPasswordResponse, error)
 	// delete an existing account user
 	DeleteAccountUser(context.Context, *DeleteAccountUserRequest) (*DeleteAccountUserResponse, error)
 	// get an account user by id
@@ -440,6 +464,8 @@ type MServiceAccountServer interface {
 	UpdateClaimName(context.Context, *UpdateClaimNameRequest) (*UpdateClaimNameResponse, error)
 	// delete an existing claim name
 	DeleteClaimName(context.Context, *DeleteClaimNameRequest) (*DeleteClaimNameResponse, error)
+	// get claim name by id
+	GetClaimNameById(context.Context, *GetClaimNameByIdRequest) (*GetClaimNameByIdResponse, error)
 	// get all claim names
 	GetClaimNames(context.Context, *GetClaimNamesRequest) (*GetClaimNamesResponse, error)
 	// create claim value
@@ -511,6 +537,9 @@ func (UnimplementedMServiceAccountServer) UpdateAccountUser(context.Context, *Up
 func (UnimplementedMServiceAccountServer) UpdateAccountUserPassword(context.Context, *UpdateAccountUserPasswordRequest) (*UpdateAccountUserPasswordResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateAccountUserPassword not implemented")
 }
+func (UnimplementedMServiceAccountServer) ResetAccountUserPassword(context.Context, *ResetAccountUserPasswordRequest) (*ResetAccountUserPasswordResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetAccountUserPassword not implemented")
+}
 func (UnimplementedMServiceAccountServer) DeleteAccountUser(context.Context, *DeleteAccountUserRequest) (*DeleteAccountUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteAccountUser not implemented")
 }
@@ -531,6 +560,9 @@ func (UnimplementedMServiceAccountServer) UpdateClaimName(context.Context, *Upda
 }
 func (UnimplementedMServiceAccountServer) DeleteClaimName(context.Context, *DeleteClaimNameRequest) (*DeleteClaimNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteClaimName not implemented")
+}
+func (UnimplementedMServiceAccountServer) GetClaimNameById(context.Context, *GetClaimNameByIdRequest) (*GetClaimNameByIdResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetClaimNameById not implemented")
 }
 func (UnimplementedMServiceAccountServer) GetClaimNames(context.Context, *GetClaimNamesRequest) (*GetClaimNamesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetClaimNames not implemented")
@@ -776,6 +808,24 @@ func _MServiceAccount_UpdateAccountUserPassword_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MServiceAccount_ResetAccountUserPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResetAccountUserPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MServiceAccountServer).ResetAccountUserPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.gaterace.mservice.account.MServiceAccount/reset_account_user_password",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MServiceAccountServer).ResetAccountUserPassword(ctx, req.(*ResetAccountUserPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MServiceAccount_DeleteAccountUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteAccountUserRequest)
 	if err := dec(in); err != nil {
@@ -898,6 +948,24 @@ func _MServiceAccount_DeleteClaimName_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MServiceAccountServer).DeleteClaimName(ctx, req.(*DeleteClaimNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MServiceAccount_GetClaimNameById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetClaimNameByIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MServiceAccountServer).GetClaimNameById(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/org.gaterace.mservice.account.MServiceAccount/get_claim_name_by_id",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MServiceAccountServer).GetClaimNameById(ctx, req.(*GetClaimNameByIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1256,6 +1324,10 @@ var MServiceAccount_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MServiceAccount_UpdateAccountUserPassword_Handler,
 		},
 		{
+			MethodName: "reset_account_user_password",
+			Handler:    _MServiceAccount_ResetAccountUserPassword_Handler,
+		},
+		{
 			MethodName: "delete_account_user",
 			Handler:    _MServiceAccount_DeleteAccountUser_Handler,
 		},
@@ -1282,6 +1354,10 @@ var MServiceAccount_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "delete_claim_name",
 			Handler:    _MServiceAccount_DeleteClaimName_Handler,
+		},
+		{
+			MethodName: "get_claim_name_by_id",
+			Handler:    _MServiceAccount_GetClaimNameById_Handler,
 		},
 		{
 			MethodName: "get_claim_names",

@@ -1,4 +1,4 @@
-// Copyright 2019-2022 Demian Harvill
+// Copyright 2019-2023 Demian Harvill
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -154,11 +154,12 @@ func (s *accountService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.L
 
 	// token := jwt.New(jwt.SigningMethodPS256)
 
+	accountName := req.GetAccountName()
 	claimMap := jwt.MapClaims{}
 
 	claimMap["uid"] = userId
 	claimMap["aid"] = accountId
-	claimMap["actname"] = req.GetAccountName()
+	claimMap["actname"] = accountName
 	claimMap["iss"] = time.Now().Unix()
 	claimMap["exp"] = time.Now().Add(time.Minute * time.Duration(s.leaseMinutes)).Unix()
 
@@ -169,6 +170,16 @@ func (s *accountService) Login(ctx context.Context, req *pb.LoginRequest) (*pb.L
 		for _, claimVal := range role.GetClaimValues() {
 			val := claimVal.GetClaimVal()
 			key := claimVal.GetClaim().GetClaimName()
+			if key == "acctmgt" {
+				// only allow super from master account
+				if val == "super" {
+					val = "admin"
+				}
+				if (val == "admin") && (accountName == "master") {
+					// promote from admin to super
+					val = "super"
+				}
+			}
 			claimMap[key] = val
 			// fmt.Printf("key: %s, val: %s\n", key, val)
 		}
