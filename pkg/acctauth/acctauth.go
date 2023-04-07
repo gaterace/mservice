@@ -1198,7 +1198,7 @@ func (s *AccountAuth) DeleteAccountRole(ctx context.Context, req *pb.DeleteAccou
 
 		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
-			if (err != nil) && (aid == accountId) {
+			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
 		}
@@ -1241,7 +1241,7 @@ func (s *AccountAuth) GetAccountRoleById(ctx context.Context, req *pb.GetAccount
 
 		if (acctmgt == "admin") || (acctmgt == "acctrw") || (acctmgt == "acctro") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
-			if (err != nil) && (aid == accountId) {
+			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
 		}
