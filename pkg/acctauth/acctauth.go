@@ -1154,7 +1154,7 @@ func (s *AccountAuth) UpdateAccountRole(ctx context.Context, req *pb.UpdateAccou
 		}
 		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
-			if (err != nil) && (aid == accountId) {
+			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
 		}
