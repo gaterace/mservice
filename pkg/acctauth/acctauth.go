@@ -1382,7 +1382,7 @@ func (s *AccountAuth) RemoveUserFromRole(ctx context.Context, req *pb.RemoveUser
 
 		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
-			if (err != nil) && (aid == accountId) {
+			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
 		}
@@ -1426,7 +1426,7 @@ func (s *AccountAuth) AddClaimToRole(ctx context.Context, req *pb.AddClaimToRole
 
 		if (acctmgt == "admin") || (acctmgt == "acctrw") {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
-			if (err != nil) && (aid == accountId) {
+			if (err == nil) && (aid == accountId) {
 				// avoid privilege escalation
 				claimName, claimValue, err := s.HelperClaimFromClaimValueId(req.GetClaimValueId())
 				if err == nil {
@@ -1484,7 +1484,7 @@ func (s *AccountAuth) RemoveClaimFromRole(ctx context.Context, req *pb.RemoveCla
 
 		if acctmgt == "admin" || acctmgt == "acctrw" {
 			accountId, err := s.HelperAccountIdFromRoleId(roleId)
-			if (err != nil) && (aid == accountId) {
+			if (err == nil) && (aid == accountId) {
 				ok = true
 			}
 		}
