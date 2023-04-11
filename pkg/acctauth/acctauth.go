@@ -538,6 +538,7 @@ func (s *AccountAuth) UpdateAccountUserPassword(ctx context.Context,
 	return resp, err
 }
 
+// ckk change
 // reset an existing account user password without knowing old password
 func (s *AccountAuth) ResetAccountUserPassword(ctx context.Context, req *pb.ResetAccountUserPasswordRequest) (*pb.ResetAccountUserPasswordResponse, error) {
 
@@ -546,13 +547,34 @@ func (s *AccountAuth) ResetAccountUserPassword(ctx context.Context, req *pb.Rese
 	resp.ErrorCode = 401
 	resp.ErrorMessage = "not authorized"
 
+	var ok bool
+
 	claims, err := s.GetJwtFromContext(ctx)
 	if err == nil {
+
 		acctmgt := GetStringFromClaims(claims, "acctmgt")
+		aid := GetInt64FromClaims(claims, "aid")
+
 		if acctmgt == "super" {
-			// only super role can reset password
+			ok = true
+		}
+		if acctmgt == "admin" {
+			accountId, err := s.HelperAccountIdFromUserid(req.GetUserId())
+			if (err == nil) && (aid == accountId) {
+				ok = true
+			}
+		}
+
+		if ok {
 			resp, err = s.acctService.ResetAccountUserPassword(ctx, req)
 		}
+	} else {
+		if err.Error() == tokenExpiredMatch {
+			resp.ErrorCode = 498
+			resp.ErrorMessage = tokenExpiredMessage
+		}
+
+		err = nil
 	}
 
 	duration := time.Now().UnixNano() - start
